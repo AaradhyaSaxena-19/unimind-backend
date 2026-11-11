@@ -37,6 +37,7 @@ from supabase import ClientOptions, create_client
 
 import chatbot
 import upload_paper
+import academic_api
 
 load_dotenv()
 
@@ -55,8 +56,9 @@ ORIGINS = [o.strip() for o in os.getenv(
 MAX_PDF_BYTES = 10 * 1024 * 1024  # same limit as the storage folder
 
 app = FastAPI(title="UniMind AI API", version="1.0")
-app.add_middleware(CORSMiddleware, allow_origins=ORIGINS, allow_methods=["GET", "POST"],
-                   allow_headers=["Authorization", "Content-Type"])
+app.add_middleware(CORSMiddleware, allow_origins=ORIGINS, allow_methods=["*"],
+                   allow_headers=["*"])
+app.include_router(academic_api.router, prefix="/api")
 
 
 # ---------------------------------------------------------------------
