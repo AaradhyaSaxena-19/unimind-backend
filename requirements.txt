@@ -3,3 +3,7 @@ python-dotenv
 groq
 pypdf
 pypdfium2
+fastapi
+uvicorn
+python-multipart
+httpx
