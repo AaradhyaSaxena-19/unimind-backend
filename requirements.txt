@@ -3,3 +3,11 @@ python-dotenv
 groq
 pypdf
 pypdfium2
+<<<<<<< Updated upstream
+fastapi
+uvicorn
+python-multipart
+httpx
+=======
+python-multipart
+>>>>>>> Stashed changes
