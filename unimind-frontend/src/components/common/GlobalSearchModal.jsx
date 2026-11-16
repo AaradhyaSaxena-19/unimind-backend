@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 
 const SEARCHABLE_ITEMS = [
+  { title: 'Courses & Curriculum Management', category: 'Academics', path: '/courses', icon: BookOpen },
+  { title: 'Faculty Attendance Portal', category: 'Faculty', path: '/teacher/attendance', icon: Calendar },
   { title: 'Database Management Systems (KCS501)', category: 'Subjects', path: '/attendance', icon: BookOpen },
   { title: 'Compiler Design (KCS502)', category: 'Subjects', path: '/attendance', icon: BookOpen },
   { title: 'Design & Analysis of Algorithms (KCS503)', category: 'Subjects', path: '/attendance', icon: BookOpen },

@@ -26,6 +26,9 @@ import StudyMaterialPage from './pages/StudyMaterialPage';
 import MessagesPage from './pages/MessagesPage';
 import DocumentsPage from './pages/DocumentsPage';
 import ProfilePage from './pages/ProfilePage';
+import FacultyAttendancePage from './pages/FacultyAttendancePage';
+import CoursesPage from './pages/CoursesPage';
+import TeacherDashboard from './pages/TeacherDashboard';
 import NotFound from './pages/NotFound';
 import LoadingSpinner from './components/common/LoadingSpinner';
 
@@ -44,7 +47,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   if (allowedRoles && !allowedRoles.includes(role)) {
     if (role === 'student') return <Navigate to="/dashboard" replace />;
     if (role === 'parent') return <Navigate to="/parent/dashboard" replace />;
-    if (role === 'teacher') return <Navigate to="/teacher/papers" replace />;
+    if (role === 'teacher') return <Navigate to="/teacher/dashboard" replace />;
     if (role === 'admin') return <Navigate to="/admin" replace />;
     return <Navigate to="/login" replace />;
   }
@@ -65,7 +68,7 @@ const RootRedirect = () => {
   }
 
   if (role === 'parent') return <Navigate to="/parent/dashboard" replace />;
-  if (role === 'teacher') return <Navigate to="/teacher/papers" replace />;
+  if (role === 'teacher') return <Navigate to="/teacher/dashboard" replace />;
   if (role === 'admin') return <Navigate to="/admin" replace />;
 
   return <Navigate to="/dashboard" replace />;
@@ -99,7 +102,7 @@ function AppLayout() {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute allowedRoles={['student', 'admin']}>
+                <ProtectedRoute allowedRoles={['student', 'admin', 'teacher']}>
                   <StudentDashboard />
                 </ProtectedRoute>
               }
@@ -117,7 +120,7 @@ function AppLayout() {
             <Route
               path="/chat"
               element={
-                <ProtectedRoute allowedRoles={['student', 'admin']}>
+                <ProtectedRoute allowedRoles={['student', 'admin', 'teacher']}>
                   <ChatPage />
                 </ProtectedRoute>
               }
@@ -240,7 +243,33 @@ function AppLayout() {
               }
             />
 
+            {/* Courses & Curriculum Route */}
+            <Route
+              path="/courses"
+              element={
+                <ProtectedRoute>
+                  <CoursesPage />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Teacher & Faculty Routes */}
+            <Route
+              path="/teacher/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+                  <TeacherDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teacher/attendance"
+              element={
+                <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+                  <FacultyAttendancePage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/teacher/papers"
               element={

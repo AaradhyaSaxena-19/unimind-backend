@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { fetchStudentAcademicData, isSupabaseConfigured } from '../services/supabase';
 import { getAnalytics } from '../services/academicService';
 import AttendanceWidget from '../components/student/AttendanceWidget';
 import MissedLecturesList from '../components/student/MissedLecturesList';
 import NeoCard from '../components/common/NeoCard';
-import NeoBadge from '../components/common/NeoBadge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { CalendarCheck, AlertTriangle, TrendingUp, BookOpen, BarChart3 } from 'lucide-react';
+import { CalendarCheck, AlertTriangle, BookOpen, BarChart3 } from 'lucide-react';
 
 export const AttendancePage = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const [data, setData] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -84,11 +84,25 @@ export const AttendancePage = () => {
           </p>
         </div>
 
-        <div className="bg-white/20 backdrop-blur-md p-3.5 rounded-2xl border border-white/30 text-center">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-100 block">
-            Current Status
-          </span>
-          <span className="text-xl font-extrabold text-white">76.2% Safe</span>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          {(role === 'teacher' || role === 'admin') && (
+            <Link to="/teacher/attendance">
+              <button
+                type="button"
+                className="bg-white hover:bg-slate-50 text-emerald-800 font-bold text-xs px-4 py-2.5 rounded-2xl shadow-soft-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <CalendarCheck className="w-4 h-4 text-emerald-700" />
+                <span>Faculty Attendance Portal &rarr;</span>
+              </button>
+            </Link>
+          )}
+
+          <div className="bg-white/20 backdrop-blur-md p-3.5 rounded-2xl border border-white/30 text-center shrink-0">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-100 block">
+              Current Status
+            </span>
+            <span className="text-xl font-extrabold text-white">76.2% Safe</span>
+          </div>
         </div>
       </div>
 
@@ -193,6 +207,21 @@ export const AttendancePage = () => {
             </div>
           </div>
         </NeoCard>
+      </div>
+
+      {/* Attendance Policy Guidance Box */}
+      <div className="p-4 sm:p-5 bg-amber-50/60 border border-amber-200/60 rounded-3xl text-left flex items-start gap-3 sm:gap-4">
+        <div className="p-2 sm:p-2.5 bg-amber-100 text-amber-700 rounded-2xl shrink-0 mt-0.5">
+          <AlertTriangle className="w-5 h-5" />
+        </div>
+        <div className="space-y-1 min-w-0">
+          <h4 className="font-bold text-xs sm:text-sm text-slate-800">
+            AKTU Ordinance Clause 4.2 &bull; Examination Admit Card Rule
+          </h4>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Every enrolled candidate must secure a minimum aggregate attendance of <strong>75%</strong> in all registered theory lectures and laboratories. Medical concessions up to 15% are subject to Dean approval with hospital records.
+          </p>
+        </div>
       </div>
     </div>
   );

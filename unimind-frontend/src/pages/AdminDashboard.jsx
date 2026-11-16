@@ -83,10 +83,12 @@ export const AdminDashboard = () => {
   const [modalError, setModalError] = useState('');
 
   useEffect(() => {
-    loadSummary();
+    (async () => {
+      await loadSummary();
+    })();
   }, []);
 
-  const loadSummary = async () => {
+  async function loadSummary() {
     try {
       const data = await getAdminSummary();
       setSummary(data);
@@ -273,7 +275,7 @@ export const AdminDashboard = () => {
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 py-4 sm:py-8 space-y-5 sm:space-y-6 text-left">
       {/* Header Banner */}
-      <div className="p-5 sm:p-8 bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 text-white rounded-3xl shadow-soft-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="p-5 sm:p-8 bg-gradient-to-r from-blue-700 via-[#1E6BFF] to-blue-600 text-white rounded-3xl shadow-glow-blue flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md text-white px-3 py-1 rounded-full">
