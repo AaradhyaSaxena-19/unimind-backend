@@ -20,6 +20,7 @@ import {
   Crown,
   Sparkles,
   X,
+  GraduationCap,
 } from 'lucide-react';
 
 export const Sidebar = ({ isMobileOpen, onCloseMobile }) => {
@@ -36,6 +37,7 @@ export const Sidebar = ({ isMobileOpen, onCloseMobile }) => {
     { label: 'AI Assistant', path: '/chat', icon: MessageSquare, badge: 'Groq' },
     { label: 'Timetable', path: '/timetable', icon: Clock },
     { label: 'Attendance', path: '/attendance', icon: CalendarCheck },
+    { label: 'Courses & Curriculum', path: '/courses', icon: GraduationCap },
     { label: 'Assignments', path: '/assignments', icon: FileCheck2 },
     { label: 'Online Tests', path: '/assessments', icon: Sparkles },
     { label: 'Examinations', path: '/exams', icon: Calendar },
@@ -61,6 +63,9 @@ export const Sidebar = ({ isMobileOpen, onCloseMobile }) => {
   ];
 
   const teacherLinks = [
+    { label: 'Faculty Dashboard', path: '/teacher/dashboard', icon: LayoutDashboard },
+    { label: 'Faculty Attendance', path: '/teacher/attendance', icon: CalendarCheck, badge: 'Live' },
+    { label: 'Courses & Subjects', path: '/courses', icon: GraduationCap },
     { label: 'Paper AI Studio', path: '/teacher/papers', icon: FileText, badge: 'Vision' },
     { label: 'Attendance Review', path: '/attendance', icon: CalendarCheck },
     { label: 'Assignments', path: '/assignments', icon: FileCheck2 },
@@ -73,6 +78,8 @@ export const Sidebar = ({ isMobileOpen, onCloseMobile }) => {
 
   const adminLinks = [
     { label: 'Admin Hub', path: '/admin', icon: ShieldAlert, badge: 'Admin' },
+    { label: 'Faculty Attendance', path: '/teacher/attendance', icon: CalendarCheck },
+    { label: 'Courses & Curriculum', path: '/courses', icon: GraduationCap },
     { label: 'Paper AI Studio', path: '/teacher/papers', icon: FileText },
     { label: 'Student Analytics', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Fee Audits', path: '/fees', icon: CreditCard },

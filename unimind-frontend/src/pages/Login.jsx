@@ -40,7 +40,7 @@ export const Login = () => {
       if (isConfigured) {
         const { profile } = await loginWithSupabase(email, password);
         if (profile?.role === 'teacher') {
-          navigate('/teacher/papers');
+          navigate('/teacher/dashboard');
         } else if (profile?.role === 'admin') {
           navigate('/admin');
         } else if (profile?.role === 'parent') {
@@ -62,7 +62,7 @@ export const Login = () => {
   const handleQuickDemo = (role) => {
     loginDemo(role);
     if (role === 'teacher') {
-      navigate('/teacher/papers');
+      navigate('/teacher/dashboard');
     } else if (role === 'admin') {
       navigate('/admin');
     } else if (role === 'parent') {
