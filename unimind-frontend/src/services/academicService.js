@@ -1,7 +1,9 @@
 import api from './api';
 
-export const getProfile = async (role = 'student') => {
-  const res = await api.get('/api/academic/profile', { params: { role } });
+export const getProfile = async (role = 'student', studentId = null) => {
+  const params = { role };
+  if (studentId) params.student_id = studentId;
+  const res = await api.get('/api/academic/profile', { params });
   return res.data;
 };
 
@@ -179,4 +181,13 @@ export const deleteAdminStudent = async (studentId) => {
   return res.data;
 };
 export const deleteStudent = deleteAdminStudent;
+
+export const loginAcademic = async ({ identifier, password, role }) => {
+  const res = await api.post('/api/academic/auth/login', {
+    identifier,
+    password,
+    role,
+  });
+  return res.data;
+};
 

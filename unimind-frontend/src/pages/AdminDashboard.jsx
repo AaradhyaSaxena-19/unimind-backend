@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getAdminSummary, addStudent, deleteStudent } from '../services/academicService';
+import {
+  getAdminSummary,
+  addStudent,
+  updateStudent,
+  deleteStudent,
+} from '../services/academicService';
 import NeoCard from '../components/common/NeoCard';
 import NeoButton from '../components/common/NeoButton';
 import NeoBadge from '../components/common/NeoBadge';
@@ -24,6 +29,7 @@ import {
   Calendar,
   MapPin,
   Eye,
+  EyeOff,
   Search,
   Filter,
   CheckCircle2,
@@ -34,6 +40,9 @@ import {
   ShieldCheck,
   Hash,
   BookOpen,
+  Lock,
+  Pencil,
+  Key,
 } from 'lucide-react';
 
 export const AdminDashboard = () => {
@@ -41,6 +50,7 @@ export const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [editingStudent, setEditingStudent] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [errorFeedback, setErrorFeedback] = useState('');
 
@@ -53,7 +63,7 @@ export const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('identity'); // 'identity' | 'contact' | 'parent'
   const fileInputRef = useRef(null);
 
-  // Form Fields
+  // Enrollment Form Fields
   const [photoPreview, setPhotoPreview] = useState('');
   const [name, setName] = useState('');
   const [rollNo, setRollNo] = useState('');
@@ -66,6 +76,8 @@ export const AdminDashboard = () => {
 
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [dob, setDob] = useState('2004-05-15');
   const [gender, setGender] = useState('Male');
   const [bloodGroup, setBloodGroup] = useState('B+');
@@ -82,6 +94,15 @@ export const AdminDashboard = () => {
   const [formLoading, setFormLoading] = useState(false);
   const [modalError, setModalError] = useState('');
 
+  // Edit Modal State
+  const [editForm, setEditForm] = useState({});
+  const [editPhotoPreview, setEditPhotoPreview] = useState('');
+  const [editTab, setEditTab] = useState('identity');
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const editFileInputRef = useRef(null);
+
   useEffect(() => {
     loadSummary();
   }, []);
@@ -97,7 +118,7 @@ export const AdminDashboard = () => {
     }
   };
 
-  // Handle Photo File Selection
+  // Handle Photo File Selection for Registration
   const handlePhotoUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -127,11 +148,36 @@ export const AdminDashboard = () => {
     }
   };
 
+  // Handle Photo File Selection for Editing
+  const handleEditPhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setEditError('Please upload a valid image file (JPG, PNG, or WEBP).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setEditError('Photograph must be under 5MB in size.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      setEditPhotoPreview(uploadEvent.target.result);
+      setEditForm((prev) => ({ ...prev, photo_url: uploadEvent.target.result }));
+      setEditError('');
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleAutoGenerateIds = () => {
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const newRoll = `2401610${randomSuffix}`;
     setRollNo(newRoll);
     setCamuId(`RBMI2024${Math.floor(100 + Math.random() * 900)}`);
+    setPassword(`Std@${randomSuffix}`);
     if (name) {
       setEmail(`${name.toLowerCase().replace(/\s+/g, '.')}@rbmi.in`);
     }
@@ -149,6 +195,8 @@ export const AdminDashboard = () => {
     setBatch('2024-2028');
     setPhone('');
     setEmail('');
+    setPassword('');
+    setShowPassword(false);
     setDob('2004-05-15');
     setGender('Male');
     setBloodGroup('B+');
@@ -205,6 +253,7 @@ export const AdminDashboard = () => {
         batch,
         phone: phone.trim(),
         email: email.trim() || `${name.trim().toLowerCase().replace(/\s+/g, '.')}@rbmi.in`,
+        password: password.trim() || `std@${rollNo.trim().slice(-4)}`,
         dob,
         gender,
         blood_group: bloodGroup,
@@ -232,6 +281,59 @@ export const AdminDashboard = () => {
     }
   };
 
+  // Open Edit Modal with Student's existing data
+  const handleOpenEditModal = (student) => {
+    setEditingStudent(student);
+    setEditForm({
+      ...student,
+      password: student.password || 'student123',
+    });
+    setEditPhotoPreview(student.photo_url || '');
+    setEditTab('identity');
+    setEditError('');
+    setShowEditPassword(false);
+  };
+
+  const handleSaveEditStudent = async (e) => {
+    e.preventDefault();
+    setEditError('');
+
+    if (!editForm.name?.trim()) {
+      setEditTab('identity');
+      setEditError('Student full name is required.');
+      return;
+    }
+    if (!editForm.roll_no?.trim()) {
+      setEditTab('identity');
+      setEditError('University Roll Number is required.');
+      return;
+    }
+    if (!editForm.phone?.trim()) {
+      setEditTab('contact');
+      setEditError('Phone number is required.');
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      const payload = {
+        ...editForm,
+        semester: parseInt(editForm.semester, 10),
+        photo_url: editPhotoPreview || editForm.photo_url,
+      };
+      await updateStudent(editingStudent.id, payload);
+      setFeedback(`Student record and login password for ${editForm.name} updated successfully.`);
+      setEditingStudent(null);
+      await loadSummary();
+    } catch (err) {
+      console.error('Update student error:', err);
+      const detail = err.response?.data?.detail || err.message || 'Failed to update student record.';
+      setEditError(detail);
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
   const handleDeleteStudent = async (id, studentName) => {
     if (!window.confirm(`Are you sure you want to permanently unregister ${studentName || 'this student'}?`)) {
       return;
@@ -241,6 +343,9 @@ export const AdminDashboard = () => {
       setFeedback(`Student record for ${studentName || id} removed successfully.`);
       if (selectedStudent?.id === id) {
         setSelectedStudent(null);
+      }
+      if (editingStudent?.id === id) {
+        setEditingStudent(null);
       }
       await loadSummary();
     } catch (err) {
@@ -287,7 +392,7 @@ export const AdminDashboard = () => {
             Campus ERP & Admissions Hub
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 mt-1">
-            Register students &bull; Photograph biometric profile &bull; Semester assignment &bull; Academic records
+            Enroll students &bull; Set designated login passwords &bull; Edit records &bull; Semester & biometric control
           </p>
         </div>
 
@@ -308,7 +413,7 @@ export const AdminDashboard = () => {
       {feedback && (
         <NeoAlert
           type="success"
-          title="Registration Succeeded"
+          title="Operation Succeeded"
           message={feedback}
           onClose={() => setFeedback('')}
         />
@@ -406,7 +511,7 @@ export const AdminDashboard = () => {
               </span>
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Manage registered students, photographs, semesters, contact numbers, and parent details
+              Manage student accounts, designated passwords, photos, semesters, and contact records
             </p>
           </div>
 
@@ -454,13 +559,14 @@ export const AdminDashboard = () => {
 
         {/* Directory Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[760px]">
+          <table className="w-full text-left text-xs min-w-[820px]">
             <thead className="bg-slate-50/80 border-b border-slate-100 font-bold uppercase tracking-wider text-slate-500">
               <tr>
                 <th className="p-4">Student Profile</th>
                 <th className="p-4">Roll & ERP ID</th>
                 <th className="p-4">Semester & Branch</th>
                 <th className="p-4">Phone & Email</th>
+                <th className="p-4 text-center">Login Password</th>
                 <th className="p-4 text-center">Attendance</th>
                 <th className="p-4 text-center">Status</th>
                 <th className="p-4 text-right">Actions</th>
@@ -469,7 +575,7 @@ export const AdminDashboard = () => {
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-slate-400">
+                  <td colSpan={8} className="p-8 text-center text-slate-400">
                     No matching student records found. Click <strong>Register New Student</strong> to add one.
                   </td>
                 </tr>
@@ -495,7 +601,10 @@ export const AdminDashboard = () => {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <span className="font-bold text-slate-900 block truncate hover:text-[#1E6BFF] cursor-pointer" onClick={() => setSelectedStudent(std)}>
+                          <span
+                            className="font-bold text-slate-900 block truncate hover:text-[#1E6BFF] cursor-pointer"
+                            onClick={() => setSelectedStudent(std)}
+                          >
                             {std.name}
                           </span>
                           <span className="text-[11px] text-slate-400 block truncate">
@@ -508,7 +617,9 @@ export const AdminDashboard = () => {
                     {/* Roll No & CAMU ID */}
                     <td className="p-4">
                       <span className="font-mono font-bold text-slate-900 block">{std.roll_no}</span>
-                      <span className="text-[11px] font-mono text-slate-400 block">{std.camu_id || 'RBMI2024001'}</span>
+                      <span className="text-[11px] font-mono text-slate-400 block">
+                        {std.camu_id || 'RBMI2024001'}
+                      </span>
                     </td>
 
                     {/* Semester & Branch */}
@@ -533,6 +644,14 @@ export const AdminDashboard = () => {
                         <Mail className="w-3 h-3 text-slate-400 shrink-0" />
                         <span className="truncate">{std.email || `${std.name.toLowerCase().replace(' ', '.')}@rbmi.in`}</span>
                       </div>
+                    </td>
+
+                    {/* Login Password Pill */}
+                    <td className="p-4 text-center">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 font-mono text-[11px] font-bold text-slate-700">
+                        <Lock className="w-3 h-3 text-slate-400" />
+                        <span>{std.password || 'student123'}</span>
+                      </span>
                     </td>
 
                     {/* Attendance */}
@@ -565,6 +684,13 @@ export const AdminDashboard = () => {
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
+                          onClick={() => handleOpenEditModal(std)}
+                          className="text-slate-400 hover:text-amber-600 p-1.5 rounded-lg hover:bg-amber-50 transition-colors"
+                          title="Edit Student Record & Password"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleDeleteStudent(std.id, std.name)}
                           className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
                           title="Delete Student Record"
@@ -582,7 +708,7 @@ export const AdminDashboard = () => {
       </div>
 
       {/* ===================================================================== */}
-      {/* REGISTER NEW STUDENT MODAL                                            */}
+      {/* REGISTER NEW STUDENT MODAL (WITH PASSWORD CONFIGURATION)              */}
       {/* ===================================================================== */}
       {showAddStudent && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
@@ -596,7 +722,7 @@ export const AdminDashboard = () => {
                 <div>
                   <h3 className="font-extrabold text-lg text-slate-900">Student Admission & Registration</h3>
                   <p className="text-xs text-slate-400">
-                    Add student photograph, semester, contact number, and academic record
+                    Set student photograph, semester, contact phone, and account login password
                   </p>
                 </div>
               </div>
@@ -642,8 +768,8 @@ export const AdminDashboard = () => {
                     : 'border-transparent text-slate-400 hover:text-slate-600'
                 }`}
               >
-                <Phone className="w-3.5 h-3.5" />
-                2. Contact & Personal
+                <Lock className="w-3.5 h-3.5" />
+                2. Contact & Password
               </button>
               <button
                 type="button"
@@ -716,7 +842,7 @@ export const AdminDashboard = () => {
                         </NeoButton>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-1">
-                        Supported: JPG, PNG, WEBP (Max 5MB). Photo appears on student ID card, exam hall tickets, and ERP profile.
+                        Supported: JPG, PNG, WEBP (Max 5MB). Photo appears on student ID, hall tickets, and ERP profile.
                       </p>
                     </div>
                   </div>
@@ -744,7 +870,7 @@ export const AdminDashboard = () => {
                           onClick={handleAutoGenerateIds}
                           className="text-[11px] text-[#1E6BFF] hover:underline font-bold flex items-center gap-1"
                         >
-                          <Sparkles className="w-3 h-3" /> Auto-Gen ID
+                          <Sparkles className="w-3 h-3" /> Auto-Gen ID & Pass
                         </button>
                       </div>
                       <div className="relative">
@@ -847,7 +973,7 @@ export const AdminDashboard = () => {
                 </div>
               )}
 
-              {/* TAB 2: CONTACT & PERSONAL DETAILS */}
+              {/* TAB 2: CONTACT & PASSWORD CREDENTIALS */}
               {activeTab === 'contact' && (
                 <div className="space-y-4 animate-in fade-in duration-200">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -862,7 +988,7 @@ export const AdminDashboard = () => {
                         required
                       />
                       <span className="text-[10px] text-slate-400 mt-1 block">
-                        Used for attendance SMS alerts and OTP verification
+                        Used for attendance SMS alerts and emergency contact
                       </span>
                     </div>
 
@@ -876,6 +1002,56 @@ export const AdminDashboard = () => {
                         type="email"
                       />
                     </div>
+                  </div>
+
+                  {/* PASSWORD SECTION */}
+                  <div className="p-4 bg-blue-50/60 rounded-2xl border border-blue-100 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-[#1E6BFF] text-white flex items-center justify-center">
+                          <Lock className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900">Student Login Password *</h4>
+                          <p className="text-[10px] text-slate-500">
+                            Designated credentials for student portal login
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const randPass = `Std@${Math.floor(1000 + Math.random() * 9000)}`;
+                          setPassword(randPass);
+                        }}
+                        className="text-[11px] text-[#1E6BFF] hover:underline font-bold flex items-center gap-1"
+                      >
+                        <Sparkles className="w-3 h-3" /> Auto-Gen Password
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Set student password (e.g. Student@2024)"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full bg-white text-slate-900 font-medium text-xs border border-slate-200 rounded-xl shadow-xs py-2.5 pl-10 pr-10 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-[#1E6BFF]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                        title={showPassword ? 'Hide Password' : 'Show Password'}
+                      >
+                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+
+                    <p className="text-[10px] text-slate-500">
+                      The student will use their <strong>Roll Number</strong> or <strong>College Email</strong> and this password to sign into their portal account.
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1110,6 +1286,487 @@ export const AdminDashboard = () => {
       )}
 
       {/* ===================================================================== */}
+      {/* EDIT STUDENT MODAL (UPDATE DETAILS & RESET LOGIN PASSWORD)           */}
+      {/* ===================================================================== */}
+      {editingStudent && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl max-w-2xl w-full my-auto text-left relative overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-amber-500/10 to-orange-500/10 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shadow-xs">
+                  <Pencil className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-lg text-slate-900">
+                    Edit Student: {editingStudent.name}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Update student academic details, semester, phone, status, and reset account password
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setEditingStudent(null)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Error Message inside Edit Modal */}
+            {editError && (
+              <div className="px-6 pt-4 shrink-0">
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{editError}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Step Navigation Tabs */}
+            <div className="px-6 pt-4 pb-1 border-b border-slate-100 flex items-center gap-2 shrink-0 overflow-x-auto scrollbar-none">
+              <button
+                type="button"
+                onClick={() => setEditTab('identity')}
+                className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
+                  editTab === 'identity'
+                    ? 'border-amber-600 text-amber-700'
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <Camera className="w-3.5 h-3.5" />
+                1. Photo & Academics
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditTab('contact')}
+                className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
+                  editTab === 'contact'
+                    ? 'border-amber-600 text-amber-700'
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <Lock className="w-3.5 h-3.5" />
+                2. Contact & Password
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditTab('parent')}
+                className={`pb-2.5 px-3 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 shrink-0 ${
+                  editTab === 'parent'
+                    ? 'border-amber-600 text-amber-700'
+                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                3. Guardian & Status
+              </button>
+            </div>
+
+            {/* Modal Body Form */}
+            <form onSubmit={handleSaveEditStudent} className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
+              {/* TAB 1: ACADEMIC DETAILS */}
+              {editTab === 'identity' && (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  {/* Photo Edit Card */}
+                  <div className="p-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl flex flex-col sm:flex-row items-center gap-4">
+                    <input
+                      type="file"
+                      ref={editFileInputRef}
+                      onChange={handleEditPhotoUpload}
+                      accept="image/*"
+                      className="hidden"
+                    />
+
+                    <div className="relative group shrink-0">
+                      <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white border-2 border-slate-200 flex items-center justify-center shadow-xs">
+                        {editPhotoPreview ? (
+                          <img
+                            src={editPhotoPreview}
+                            alt="Student Preview"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Camera className="w-6 h-6 text-slate-400" />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 text-center sm:text-left flex-1">
+                      <NeoButton
+                        type="button"
+                        variant="white"
+                        size="xs"
+                        icon={Upload}
+                        onClick={() => editFileInputRef.current?.click()}
+                        className="border border-slate-200 text-slate-700 font-bold"
+                      >
+                        Change Photograph
+                      </NeoButton>
+                      <p className="text-[11px] text-slate-400">
+                        Upload a new JPG or PNG to replace the existing student photo.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <NeoInput
+                        label="Full Student Name *"
+                        value={editForm.name || ''}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        icon={User}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <NeoInput
+                        label="University Roll Number *"
+                        value={editForm.roll_no || ''}
+                        onChange={(e) => setEditForm({ ...editForm, roll_no: e.target.value })}
+                        icon={Hash}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <NeoInput
+                        label="CAMU ERP / Institutional ID"
+                        value={editForm.camu_id || ''}
+                        onChange={(e) => setEditForm({ ...editForm, camu_id: e.target.value })}
+                        icon={Building2}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+                        Program / Degree
+                      </label>
+                      <select
+                        value={editForm.course || 'B.Tech'}
+                        onChange={(e) => setEditForm({ ...editForm, course: e.target.value })}
+                        className="w-full text-xs font-semibold p-2.5 bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-amber-100 focus:border-amber-500"
+                      >
+                        <option value="B.Tech">B.Tech (Bachelor of Technology)</option>
+                        <option value="BCA">BCA (Bachelor of Computer Applications)</option>
+                        <option value="MCA">MCA (Master of Computer Applications)</option>
+                        <option value="MBA">MBA (Master of Business Administration)</option>
+                        <option value="Diploma">Polytechnic Diploma</option>
+                        <option value="B.Pharm">B.Pharm</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+                        Academic Branch
+                      </label>
+                      <select
+                        value={editForm.branch || 'Computer Science & Engineering'}
+                        onChange={(e) => setEditForm({ ...editForm, branch: e.target.value })}
+                        className="w-full text-xs font-semibold p-2.5 bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-amber-100 focus:border-amber-500"
+                      >
+                        <option value="Computer Science & Engineering">CSE</option>
+                        <option value="Information Technology">IT</option>
+                        <option value="AI & Machine Learning">CSE (AI & ML)</option>
+                        <option value="Electronics & Communication">ECE</option>
+                        <option value="Mechanical Engineering">Mechanical</option>
+                        <option value="Civil Engineering">Civil</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+                        Current Semester *
+                      </label>
+                      <select
+                        value={editForm.semester || 1}
+                        onChange={(e) => setEditForm({ ...editForm, semester: parseInt(e.target.value, 10) })}
+                        className="w-full text-xs font-bold p-2.5 bg-white rounded-xl border border-slate-200 focus:outline-none focus:ring-4 focus:ring-amber-100 focus:border-amber-500 text-amber-700"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                          <option key={s} value={s}>
+                            Semester {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+                        Class Section
+                      </label>
+                      <select
+                        value={editForm.section || 'A'}
+                        onChange={(e) => setEditForm({ ...editForm, section: e.target.value })}
+                        className="w-full text-xs font-semibold p-2.5 bg-white rounded-xl border border-slate-200 focus:outline-none"
+                      >
+                        <option value="A">Section A</option>
+                        <option value="B">Section B</option>
+                        <option value="C">Section C</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: CONTACT & PASSWORD */}
+              {editTab === 'contact' && (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <NeoInput
+                        label="Student Mobile Phone *"
+                        value={editForm.phone || ''}
+                        onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                        icon={Phone}
+                        type="tel"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <NeoInput
+                        label="Student Email Address"
+                        value={editForm.email || ''}
+                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                        icon={Mail}
+                        type="email"
+                      />
+                    </div>
+                  </div>
+
+                  {/* EDIT PASSWORD SECTION */}
+                  <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-amber-600 text-white flex items-center justify-center">
+                          <Lock className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900">Student Login Password</h4>
+                          <p className="text-[10px] text-slate-500">
+                            Reset or update student's account access password
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const randPass = `Std@${Math.floor(1000 + Math.random() * 9000)}`;
+                          setEditForm({ ...editForm, password: randPass });
+                        }}
+                        className="text-[11px] text-amber-700 hover:underline font-bold flex items-center gap-1"
+                      >
+                        <Sparkles className="w-3 h-3" /> Auto-Gen New Password
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type={showEditPassword ? 'text' : 'password'}
+                        placeholder="Enter new password for student"
+                        value={editForm.password || ''}
+                        onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                        className="w-full bg-white text-slate-900 font-medium text-xs border border-slate-200 rounded-xl shadow-xs py-2.5 pl-10 pr-10 focus:outline-none focus:ring-4 focus:ring-amber-100 focus:border-amber-500"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEditPassword(!showEditPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                      >
+                        {showEditPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+                        Date of Birth
+                      </label>
+                      <input
+                        type="date"
+                        value={editForm.dob || '2004-01-01'}
+                        onChange={(e) => setEditForm({ ...editForm, dob: e.target.value })}
+                        className="w-full text-xs font-semibold p-2.5 bg-white rounded-xl border border-slate-200 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+                        Gender
+                      </label>
+                      <select
+                        value={editForm.gender || 'Male'}
+                        onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
+                        className="w-full text-xs font-semibold p-2.5 bg-white rounded-xl border border-slate-200 focus:outline-none"
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+                        Blood Group
+                      </label>
+                      <select
+                        value={editForm.blood_group || 'B+'}
+                        onChange={(e) => setEditForm({ ...editForm, blood_group: e.target.value })}
+                        className="w-full text-xs font-semibold p-2.5 bg-white rounded-xl border border-slate-200 focus:outline-none"
+                      >
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: GUARDIAN, ADDRESS & ACCOUNT STATUS */}
+              {editTab === 'parent' && (
+                <div className="space-y-4 animate-in fade-in duration-200">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <NeoInput
+                        label="Parent / Guardian Name"
+                        value={editForm.parent_name || ''}
+                        onChange={(e) => setEditForm({ ...editForm, parent_name: e.target.value })}
+                        icon={User}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+                        Relationship
+                      </label>
+                      <select
+                        value={editForm.parent_relation || 'Father'}
+                        onChange={(e) => setEditForm({ ...editForm, parent_relation: e.target.value })}
+                        className="w-full text-xs font-semibold p-2.5 bg-white rounded-xl border border-slate-200 focus:outline-none"
+                      >
+                        <option value="Father">Father</option>
+                        <option value="Mother">Mother</option>
+                        <option value="Guardian">Guardian</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <NeoInput
+                        label="Parent Contact Phone Number"
+                        value={editForm.parent_phone || ''}
+                        onChange={(e) => setEditForm({ ...editForm, parent_phone: e.target.value })}
+                        icon={Phone}
+                        type="tel"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+                        Student Account Status
+                      </label>
+                      <select
+                        value={editForm.status || 'Active'}
+                        onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                        className="w-full text-xs font-semibold p-2.5 bg-white rounded-xl border border-slate-200 focus:outline-none font-bold"
+                      >
+                        <option value="Active">Active (Permitted)</option>
+                        <option value="Low Attendance">Low Attendance Warning</option>
+                        <option value="Suspended">Suspended / Inactive</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+                      Residential Address
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={editForm.address || ''}
+                      onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                      className="w-full text-xs font-medium p-2.5 bg-white rounded-xl border border-slate-200 focus:outline-none resize-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Footer Controls */}
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                  {editTab !== 'identity' && (
+                    <NeoButton
+                      type="button"
+                      variant="white"
+                      size="sm"
+                      onClick={() => {
+                        if (editTab === 'parent') setEditTab('contact');
+                        else if (editTab === 'contact') setEditTab('identity');
+                      }}
+                    >
+                      Back
+                    </NeoButton>
+                  )}
+                  {editTab !== 'parent' && (
+                    <NeoButton
+                      type="button"
+                      variant="white"
+                      size="sm"
+                      onClick={() => {
+                        if (editTab === 'identity') setEditTab('contact');
+                        else if (editTab === 'contact') setEditTab('parent');
+                      }}
+                      className="text-amber-700 font-bold"
+                    >
+                      Next Step <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                    </NeoButton>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <NeoButton
+                    type="button"
+                    variant="white"
+                    size="sm"
+                    onClick={() => setEditingStudent(null)}
+                  >
+                    Cancel
+                  </NeoButton>
+                  <NeoButton
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    loading={editLoading}
+                    className="shadow-md rounded-xl bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    Save Changes
+                  </NeoButton>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ===================================================================== */}
       {/* STUDENT REGISTRATION DOSSIER CARD (VIEW MODAL)                       */}
       {/* ===================================================================== */}
       {selectedStudent && (
@@ -1161,6 +1818,35 @@ export const AdminDashboard = () => {
 
             {/* Dossier Body */}
             <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-xs">
+              {/* Login Credentials Card */}
+              <div className="p-4 bg-blue-50/80 rounded-2xl border border-blue-200/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-700 flex items-center gap-1">
+                    <Lock className="w-3 h-3" /> Designated Login Credentials
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedStudent(null);
+                      handleOpenEditModal(selectedStudent);
+                    }}
+                    className="text-[11px] font-bold text-[#1E6BFF] hover:underline flex items-center gap-1"
+                  >
+                    <Pencil className="w-3 h-3" /> Edit Credentials
+                  </button>
+                </div>
+                <div className="flex justify-between py-1 border-b border-blue-200/50">
+                  <span className="text-slate-600 font-medium">Username / Identifier:</span>
+                  <span className="font-mono font-bold text-slate-900">{selectedStudent.roll_no} or {selectedStudent.email}</span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span className="text-slate-600 font-medium">Designated Password:</span>
+                  <span className="font-mono font-bold text-blue-900 bg-white px-2 py-0.5 rounded border border-blue-200">
+                    {selectedStudent.password || 'student123'}
+                  </span>
+                </div>
+              </div>
+
               {/* Academic Record Card */}
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block mb-1">
@@ -1228,14 +1914,26 @@ export const AdminDashboard = () => {
                 </div>
               </div>
 
-              <div className="pt-2 flex justify-end">
+              <div className="pt-2 flex items-center justify-between gap-2">
+                <NeoButton
+                  variant="white"
+                  size="sm"
+                  icon={Pencil}
+                  onClick={() => {
+                    setSelectedStudent(null);
+                    handleOpenEditModal(selectedStudent);
+                  }}
+                  className="rounded-full flex-1 justify-center border-amber-300 text-amber-700 hover:bg-amber-50"
+                >
+                  Edit Student
+                </NeoButton>
                 <NeoButton
                   variant="primary"
                   size="sm"
                   onClick={() => setSelectedStudent(null)}
-                  className="rounded-full w-full justify-center"
+                  className="rounded-full flex-1 justify-center"
                 >
-                  Done & Close Dossier
+                  Done
                 </NeoButton>
               </div>
             </div>

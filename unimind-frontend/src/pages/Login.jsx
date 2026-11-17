@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export const Login = () => {
-  const { loginWithSupabase, loginDemo, resetPassword, isConfigured } = useAuth();
+  const { login, loginWithSupabase, loginDemo, resetPassword, isConfigured } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -37,19 +37,15 @@ export const Login = () => {
     setLoading(true);
 
     try {
-      if (isConfigured) {
-        const { profile } = await loginWithSupabase(email, password);
-        if (profile?.role === 'teacher') {
-          navigate('/teacher/papers');
-        } else if (profile?.role === 'admin') {
-          navigate('/admin');
-        } else if (profile?.role === 'parent') {
-          navigate('/parent/dashboard');
-        } else {
-          navigate('/dashboard');
-        }
+      const res = await login(email, password);
+      const userRole = res?.role || res?.profile?.role || 'student';
+      if (userRole === 'teacher') {
+        navigate('/teacher/papers');
+      } else if (userRole === 'admin') {
+        navigate('/admin');
+      } else if (userRole === 'parent') {
+        navigate('/parent/dashboard');
       } else {
-        loginDemo('student');
         navigate('/dashboard');
       }
     } catch (err) {
@@ -122,9 +118,9 @@ export const Login = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4 text-left">
             <NeoInput
-              label="College Registered Email"
-              type="email"
-              placeholder="e.g. student1@example.com or parent1@example.com"
+              label="College Email or University Roll Number"
+              type="text"
+              placeholder="e.g. 210161010001 or aaradhya.saxena@rbmi.in"
               icon={Mail}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -133,15 +129,18 @@ export const Login = () => {
 
             <div>
               <NeoInput
-                label="Password"
+                label="Designated Account Password"
                 type="password"
-                placeholder="••••••••••••"
+                placeholder="Enter student or role password"
                 icon={Lock}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
-              <div className="text-right mt-1.5">
+              <div className="flex items-center justify-between mt-1.5 text-xs">
+                <span className="text-[11px] text-slate-400">
+                  Password configured during enrollment
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -163,7 +162,7 @@ export const Login = () => {
                 loading={loading}
                 className="w-full"
               >
-                Sign In to Portal
+                Sign In to Designated Portal
               </NeoButton>
             </div>
           </form>

@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 export const ProfilePage = () => {
-  const { role } = useAuth();
+  const { role, profile: authProfile } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -34,15 +34,17 @@ export const ProfilePage = () => {
 
   const loadData = async () => {
     try {
-      const data = await getProfile(role);
-      setProfile(data.profile);
-      if (data.profile) {
-        setPhone(data.profile.phone || '');
-        setAddress(data.profile.address || '');
-        setParentPhone(data.profile.parent_phone || '');
+      const data = await getProfile(role, authProfile?.id);
+      const activeProfile = data.profile || authProfile;
+      setProfile(activeProfile);
+      if (activeProfile) {
+        setPhone(activeProfile.phone || '');
+        setAddress(activeProfile.address || '');
+        setParentPhone(activeProfile.parent_phone || '');
       }
     } catch (err) {
       console.error('Failed to load profile:', err);
+      if (authProfile) setProfile(authProfile);
     } finally {
       setLoading(false);
     }
@@ -50,7 +52,7 @@ export const ProfilePage = () => {
 
   useEffect(() => {
     loadData();
-  }, [role]);
+  }, [role, authProfile]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();

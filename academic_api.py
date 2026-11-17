@@ -465,11 +465,38 @@ class AdminEntityCreate(BaseModel):
 # =====================================================================
 
 @router.get("/profile")
-def get_user_profile(role: str = "student"):
+def get_user_profile(role: str = "student", student_id: Optional[str] = None):
     """Return student or parent profile."""
     if role == "parent":
         return {"profile": PARENT_DB["parent1"], "role": "parent"}
-    return {"profile": STUDENT_DB["student1"], "role": "student"}
+    if student_id and student_id in STUDENT_DB:
+        return {"profile": STUDENT_DB[student_id], "role": "student"}
+    if student_id:
+        for s in ADMIN_STUDENTS:
+            if s.get("id") == student_id or s.get("roll_no") == student_id:
+                return {
+                    "profile": {
+                        "id": s["id"],
+                        "full_name": s["name"],
+                        "roll_no": s["roll_no"],
+                        "camu_id": s.get("camu_id"),
+                        "course": f"{s.get('course', 'B.Tech')} {s.get('branch', 'CSE')}",
+                        "semester": int(s.get("semester", 1)),
+                        "section": s.get("section", "A"),
+                        "email": s.get("email"),
+                        "phone": s.get("phone"),
+                        "photo_url": s.get("photo_url"),
+                        "college": "RBMI Group of Institutions, Bareilly",
+                        "blood_group": s.get("blood_group", "B+"),
+                        "dob": s.get("dob", "2004-01-01"),
+                        "parent_name": s.get("parent_name", ""),
+                        "parent_phone": s.get("parent_phone", ""),
+                        "parent_email": s.get("parent_email", ""),
+                        "address": s.get("address", "")
+                    },
+                    "role": "student"
+                }
+    return {"profile": STUDENT_DB.get("student1", {}), "role": "student"}
 
 @router.post("/profile/update")
 def update_profile(req: ProfileUpdateRequest):
@@ -827,6 +854,7 @@ ADMIN_STUDENTS = [
     {
         "id": "std-1",
         "name": "Aaradhya Saxena",
+        "password": "student123",
         "photo_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
         "roll_no": "210161010001",
         "camu_id": "RBMI2021001",
@@ -855,6 +883,7 @@ ADMIN_STUDENTS = [
     {
         "id": "std-2",
         "name": "Rohan Gupta",
+        "password": "rohan123",
         "photo_url": "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
         "roll_no": "210161010002",
         "camu_id": "RBMI2021002",
@@ -883,6 +912,7 @@ ADMIN_STUDENTS = [
     {
         "id": "std-3",
         "name": "Priya Sharma",
+        "password": "priya123",
         "photo_url": "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
         "roll_no": "210161010003",
         "camu_id": "RBMI2021003",
@@ -911,6 +941,7 @@ ADMIN_STUDENTS = [
     {
         "id": "std-4",
         "name": "Vikram Singh",
+        "password": "vikram123",
         "photo_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
         "roll_no": "210161010004",
         "camu_id": "RBMI2021004",
@@ -985,6 +1016,10 @@ def create_student(data: Dict[str, Any]):
     if any(s["roll_no"].lower() == roll_no.lower() for s in ADMIN_STUDENTS):
         raise HTTPException(status_code=400, detail=f"A student with Roll Number {roll_no} already exists.")
 
+    password = (data.get("password") or "").strip()
+    if not password:
+        password = f"std@{roll_no[-4:] if len(roll_no) >= 4 else '1234'}"
+
     std_idx = len(ADMIN_STUDENTS) + 1
     generated_id = f"std-{std_idx}"
     camu_id = data.get("camu_id") or f"RBMI2024{std_idx:03d}"
@@ -996,6 +1031,7 @@ def create_student(data: Dict[str, Any]):
     new_student = {
         "id": generated_id,
         "name": name,
+        "password": password,
         "photo_url": photo_url,
         "roll_no": roll_no,
         "camu_id": camu_id,
@@ -1018,7 +1054,7 @@ def create_student(data: Dict[str, Any]):
         "state": data.get("state") or "Uttar Pradesh",
         "pincode": data.get("pincode") or "243001",
         "attendance": "100.0%",
-        "status": "Active",
+        "status": data.get("status") or "Active",
         "created_at": date.today().isoformat()
     }
     ADMIN_STUDENTS.insert(0, new_student)
@@ -1042,13 +1078,14 @@ def create_student(data: Dict[str, Any]):
         "parent_name": new_student["parent_name"],
         "parent_phone": new_student["parent_phone"],
         "parent_email": new_student["parent_email"],
-        "address": new_student["address"]
+        "address": new_student["address"],
+        "password": password
     }
 
     return {
         "success": True,
         "student": new_student,
-        "message": f"Student {name} (Roll No: {roll_no}) successfully registered and enrolled in Semester {semester}."
+        "message": f"Student {name} (Roll: {roll_no}) successfully registered with designated login credentials!"
     }
 
 @router.get("/admin/students/{std_id}")
@@ -1065,7 +1102,31 @@ def update_student_record(std_id: str, data: Dict[str, Any]):
             for key, val in data.items():
                 if key != "id" and val is not None:
                     s[key] = val
-            return {"success": True, "student": s}
+            # Sync to STUDENT_DB as well
+            if std_id in STUDENT_DB:
+                STUDENT_DB[std_id].update({
+                    "full_name": s.get("name"),
+                    "photo_url": s.get("photo_url"),
+                    "roll_no": s.get("roll_no"),
+                    "camu_id": s.get("camu_id"),
+                    "course": f"{s.get('course')} {s.get('branch')}",
+                    "semester": int(s.get("semester", 1)),
+                    "section": s.get("section"),
+                    "email": s.get("email"),
+                    "phone": s.get("phone"),
+                    "blood_group": s.get("blood_group"),
+                    "dob": s.get("dob"),
+                    "parent_name": s.get("parent_name"),
+                    "parent_phone": s.get("parent_phone"),
+                    "parent_email": s.get("parent_email"),
+                    "address": s.get("address"),
+                    "password": s.get("password")
+                })
+            return {
+                "success": True,
+                "student": s,
+                "message": f"Student record for {s.get('name')} updated successfully."
+            }
     raise HTTPException(status_code=404, detail="Student record not found.")
 
 @router.delete("/admin/students/{std_id}")
@@ -1076,3 +1137,134 @@ def delete_student(std_id: str):
     if len(ADMIN_STUDENTS) == initial_len:
         raise HTTPException(status_code=404, detail="Student not found.")
     return {"success": True, "message": "Student record deleted successfully."}
+
+@router.post("/auth/login")
+def login_student(data: Dict[str, Any]):
+    identifier = (data.get("identifier") or data.get("email") or data.get("roll_no") or "").strip()
+    password = (data.get("password") or "").strip()
+
+    if not identifier:
+        raise HTTPException(status_code=400, detail="Please enter your College Email or University Roll Number.")
+    if not password:
+        raise HTTPException(status_code=400, detail="Please enter your account password.")
+
+    # Check Admin credentials
+    if identifier.lower() in ["admin", "admin1@example.com", "admin@rbmi.in"] and password in ["admin123", "admin"]:
+        return {
+            "success": True,
+            "role": "admin",
+            "token": f"admin_jwt_{uuid.uuid4().hex[:12]}",
+            "user": {"id": "admin-1", "email": "admin1@example.com", "name": "System Admin"},
+            "profile": {
+                "id": "admin-1",
+                "full_name": "System Administrator",
+                "role": "admin",
+                "email": "admin1@example.com",
+                "status": "Active",
+                "college": "RBMI Group of Institutions"
+            }
+        }
+
+    # Check Faculty credentials
+    if identifier.lower() in ["teacher", "faculty", "teacher1@example.com", "dr.sharma@rbmi.in"] and password in ["teacher123", "teacher"]:
+        return {
+            "success": True,
+            "role": "teacher",
+            "token": f"teacher_jwt_{uuid.uuid4().hex[:12]}",
+            "user": {"id": "fac-1", "email": "teacher1@example.com", "name": "Dr. Sharma"},
+            "profile": {
+                "id": "fac-1",
+                "full_name": "Dr. Sharma",
+                "role": "teacher",
+                "email": "teacher1@example.com",
+                "department": "Computer Science & Engineering",
+                "status": "Active",
+                "college": "RBMI Group of Institutions"
+            }
+        }
+
+    # Check Parent credentials
+    if identifier.lower() in ["parent", "parent1@example.com"] and password in ["parent123", "parent"]:
+        return {
+            "success": True,
+            "role": "parent",
+            "token": f"parent_jwt_{uuid.uuid4().hex[:12]}",
+            "user": {"id": "parent-1", "email": "parent1@example.com", "name": "Rajesh Saxena"},
+            "profile": PARENT_DB.get("parent1", {
+                "id": "parent-1",
+                "full_name": "Rajesh Saxena",
+                "role": "parent",
+                "email": "parent1@example.com",
+                "child_name": "Aaradhya Saxena",
+                "child_roll": "210161010001",
+                "child_course": "B.Tech CSE - Sem 5",
+                "status": "Active"
+            })
+        }
+
+    # Match Student by Roll Number OR Email
+    target_student = None
+    for s in ADMIN_STUDENTS:
+        if s.get("roll_no", "").strip().lower() == identifier.lower() or s.get("email", "").strip().lower() == identifier.lower():
+            target_student = s
+            break
+
+    if not target_student:
+        raise HTTPException(
+            status_code=401,
+            detail="No student account found with this Roll Number or Email. Please check your credentials or contact the Admin."
+        )
+
+    # Validate student's password
+    student_pwd = target_student.get("password") or "student123"
+    if student_pwd != password:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect password for this student account. Please enter the password configured during registration."
+        )
+
+    student_id = target_student["id"]
+    student_profile = {
+        "id": student_id,
+        "full_name": target_student["name"],
+        "name": target_student["name"],
+        "roll_no": target_student["roll_no"],
+        "camu_id": target_student.get("camu_id", "RBMI2024001"),
+        "course": f"{target_student.get('course', 'B.Tech')} {target_student.get('branch', 'CSE')}",
+        "branch": target_student.get("branch", "Computer Science & Engineering"),
+        "year": max(1, (int(target_student.get("semester", 1)) + 1) // 2),
+        "semester": int(target_student.get("semester", 1)),
+        "section": target_student.get("section", "A"),
+        "batch": target_student.get("batch", "2024-2028"),
+        "email": target_student.get("email", identifier),
+        "phone": target_student.get("phone", ""),
+        "photo_url": target_student.get("photo_url", ""),
+        "attendance": target_student.get("attendance", "100.0%"),
+        "status": target_student.get("status", "Active"),
+        "dob": target_student.get("dob", ""),
+        "gender": target_student.get("gender", ""),
+        "blood_group": target_student.get("blood_group", ""),
+        "parent_name": target_student.get("parent_name", ""),
+        "parent_phone": target_student.get("parent_phone", ""),
+        "address": target_student.get("address", ""),
+        "role": "student",
+        "college": "RBMI Group of Institutions, Bareilly"
+    }
+
+    # Synchronize into active student state
+    STUDENT_DB[student_id] = student_profile
+    STUDENT_DB["student1"] = student_profile
+
+    return {
+        "success": True,
+        "role": "student",
+        "token": f"student_jwt_{uuid.uuid4().hex[:12]}",
+        "user": {
+            "id": student_id,
+            "email": target_student.get("email"),
+            "name": target_student["name"],
+            "roll_no": target_student["roll_no"]
+        },
+        "profile": student_profile,
+        "message": f"Welcome back, {target_student['name']}!"
+    }

@@ -50,14 +50,21 @@ VISION_MODEL = os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.8-27b")
 # Which websites may call this service. For production, set FRONTEND_ORIGINS in .env,
 # for example: FRONTEND_ORIGINS=https://unimind.example.com
 ORIGINS = [o.strip() for o in os.getenv(
-    "FRONTEND_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:8080"
+    "FRONTEND_ORIGINS",
+    "http://localhost:3000,http://localhost:5173,http://localhost:5174,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:8080,http://127.0.0.1:8080"
 ).split(",") if o.strip()]
 
 MAX_PDF_BYTES = 10 * 1024 * 1024  # same limit as the storage folder
 
 app = FastAPI(title="UniMind AI API", version="1.0")
-app.add_middleware(CORSMiddleware, allow_origins=ORIGINS, allow_methods=["*"],
-                   allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ORIGINS,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(academic_api.router, prefix="/api")
 
 

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase, fetchUserProfile, isSupabaseConfigured } from '../services/supabase';
+import { loginAcademic } from '../services/academicService';
 
 const AuthContext = createContext(null);
 
@@ -71,6 +72,29 @@ export const AuthProvider = ({ children }) => {
       mounted = false;
     };
   }, []);
+
+  const login = async (identifier, password) => {
+    try {
+      const res = await loginAcademic({ identifier, password });
+      if (res.success) {
+        setUser(res.user);
+        setProfile(res.profile);
+        setToken(res.token);
+        localStorage.setItem('unimind_access_token', res.token);
+        localStorage.setItem('unimind_demo_user', JSON.stringify(res.user));
+        localStorage.setItem('unimind_demo_profile', JSON.stringify(res.profile));
+        return { user: res.user, profile: res.profile, role: res.role };
+      }
+    } catch (apiErr) {
+      if (apiErr.response?.data?.detail) {
+        throw new Error(apiErr.response.data.detail);
+      }
+      if (isSupabaseConfigured() && supabase) {
+        return await loginWithSupabase(identifier, password);
+      }
+      throw new Error(apiErr.message || 'Login failed. Please check your credentials.');
+    }
+  };
 
   const loginWithSupabase = async (email, password) => {
     if (!isSupabaseConfigured() || !supabase) {
@@ -192,6 +216,7 @@ export const AuthProvider = ({ children }) => {
     role: profile?.role || null,
     loading,
     isConfigured: isSupabaseConfigured(),
+    login,
     loginWithSupabase,
     loginDemo,
     resetPassword,
