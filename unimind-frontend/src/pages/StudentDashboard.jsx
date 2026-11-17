@@ -8,7 +8,6 @@ import MissedLecturesList from '../components/student/MissedLecturesList';
 import MarksSummary from '../components/student/MarksSummary';
 import FeesCard from '../components/student/FeesCard';
 import NeoCard from '../components/common/NeoCard';
-import NeoButton from '../components/common/NeoButton';
 import NeoBadge from '../components/common/NeoBadge';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import {
@@ -19,20 +18,17 @@ import {
   Clock,
   Calendar,
   Award,
-  CreditCard,
   Megaphone,
   ArrowRight,
-  TrendingUp,
   FileCheck2,
   Database,
   Cpu,
   Layers,
   Globe,
-  Flame,
   Trophy,
-  Gift,
   Play,
   CheckCircle2,
+  GraduationCap,
 } from 'lucide-react';
 
 export const StudentDashboard = () => {
@@ -41,7 +37,6 @@ export const StudentDashboard = () => {
   const [todayClasses, setTodayClasses] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [upcomingExams, setUpcomingExams] = useState([]);
-  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -49,7 +44,7 @@ export const StudentDashboard = () => {
 
     const loadData = async () => {
       try {
-        const [acad, tt, ann, ex, ev] = await Promise.all([
+        const [acad, tt, ann, ex, _ev] = await Promise.all([
           isSupabaseConfigured() && user ? fetchStudentAcademicData(user) : null,
           getTimetable().catch(() => ({ timetable: {} })),
           getAnnouncements().catch(() => ({ announcements: [] })),
@@ -125,7 +120,6 @@ export const StudentDashboard = () => {
           setTodayClasses(tt.timetable?.[dayName] || tt.timetable?.['Monday'] || []);
           setAnnouncements((ann.announcements || []).slice(0, 2));
           setUpcomingExams((ex.exams || []).slice(0, 2));
-          setEvents((ev.events || []).slice(0, 2));
         }
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
@@ -148,101 +142,169 @@ export const StudentDashboard = () => {
     ? Math.round((data.overall.days_present / data.overall.total_days) * 100)
     : 76;
 
-  // Circular gauge math
+  // Circular gauge calculations
   const radius = 45;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (attendancePct / 100) * circumference;
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 py-4 sm:py-6 space-y-5 sm:space-y-6 text-left">
-      {/* 2-Column Responsive Layout matching Lingora screenshot */}
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 md:px-8 py-4 sm:py-6 space-y-6 text-left">
+      {/* 2-Column Responsive Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left / Main Column (Cols 1-8 on lg) */}
         <div className="lg:col-span-8 space-y-6">
-          {/* Hero Greeting Banner (Lingora style) */}
-          <div className="relative overflow-hidden rounded-3xl p-5 sm:p-8 bg-gradient-to-r from-blue-600 via-[#1E6BFF] to-indigo-600 text-white shadow-glow-blue">
-            {/* Background decorative glow elements */}
+          {/* Hero Greeting Banner - Clean Blue University Style */}
+          <div className="relative overflow-hidden rounded-3xl p-5 sm:p-7 bg-gradient-to-r from-blue-700 via-[#1E6BFF] to-blue-600 text-white shadow-glow-blue">
             <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-            <div className="absolute bottom-0 right-1/4 w-32 h-32 bg-indigo-400/20 rounded-full blur-xl pointer-events-none" />
+            <div className="absolute bottom-0 right-1/4 w-32 h-32 bg-blue-400/20 rounded-full blur-xl pointer-events-none" />
 
             <div className="relative z-10 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-white">
                   AKTU B.Tech CSE &bull; Semester {studentProfile?.semester || 5}
                 </span>
-                <span className="text-[11px] font-medium text-blue-100">
+                <span className="text-[11px] font-medium text-blue-100 font-mono">
                   Roll: {studentProfile?.roll_no || '210161010001'}
                 </span>
               </div>
 
               <div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                  Good morning, {studentProfile?.full_name?.split(' ')[0] || 'Aaradhya'}! 👋
+                  Welcome back, {studentProfile?.full_name?.split(' ')[0] || 'Aaradhya'}! 👋
                 </h1>
                 <p className="text-xs sm:text-sm text-blue-100 mt-1 max-w-lg leading-relaxed">
-                  One lesson and one quiz closer to your next semester milestone! Keep your 12-day study streak alive.
+                  Session 2026-27 &bull; Your attendance is standing at a safe <strong className="text-white">{attendancePct}%</strong>. Check today's schedule and assignments below.
                 </p>
               </div>
 
-              <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
+              <div className="pt-2 flex flex-wrap items-center gap-2.5">
                 <Link to="/chat" className="w-full sm:w-auto">
-                  <button className="w-full sm:w-auto bg-white hover:bg-slate-50 text-[#1E6BFF] font-bold text-xs sm:text-sm px-5 py-2.5 rounded-full shadow-soft-xs hover:shadow-soft-md transition-all flex items-center justify-center gap-2 cursor-pointer">
+                  <button
+                    type="button"
+                    className="w-full sm:w-auto bg-white hover:bg-slate-50 text-[#1E6BFF] font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-soft-xs hover:shadow-soft transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
                     <Sparkles className="w-4 h-4 fill-blue-100" />
-                    <span>Ask UniMind AI Tutor</span>
+                    <span>Ask AI Academic Tutor</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </Link>
 
                 <Link to="/timetable" className="w-full sm:w-auto">
-                  <button className="w-full sm:w-auto bg-white/15 hover:bg-white/25 text-white font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-full backdrop-blur-md transition-colors cursor-pointer text-center justify-center">
+                  <button
+                    type="button"
+                    className="w-full sm:w-auto bg-white/15 hover:bg-white/25 text-white border border-white/20 font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl backdrop-blur-md transition-colors cursor-pointer text-center justify-center"
+                  >
                     Today's Schedule
+                  </button>
+                </Link>
+
+                <Link to="/courses" className="w-full sm:w-auto">
+                  <button
+                    type="button"
+                    className="w-full sm:w-auto bg-white/15 hover:bg-white/25 text-white border border-white/20 font-semibold text-xs sm:text-sm px-4 py-2.5 rounded-xl backdrop-blur-md transition-colors cursor-pointer text-center justify-center"
+                  >
+                    Curriculum & Subjects
                   </button>
                 </Link>
               </div>
             </div>
           </div>
 
-          {/* "Continue Learning" In-Progress Card (Exact Lingora UI feature) */}
-          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-100 shadow-soft space-y-4">
+          {/* KPI Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <div className="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-soft">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block truncate">
+                Overall Attendance
+              </span>
+              <span className="text-2xl font-extrabold text-slate-900 tracking-tight block mt-1">
+                {attendancePct}%
+              </span>
+              <span className="text-[11px] font-semibold text-emerald-600 block mt-0.5 truncate">
+                Safe (&ge;75% Cutoff)
+              </span>
+            </div>
+
+            <div className="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-soft">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block truncate">
+                Scheduled Today
+              </span>
+              <span className="text-2xl font-extrabold text-slate-900 tracking-tight block mt-1">
+                {todayClasses.length || 4}
+              </span>
+              <span className="text-[11px] font-medium text-slate-500 block mt-0.5 truncate">
+                Lectures & Labs
+              </span>
+            </div>
+
+            <div className="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-soft">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block truncate">
+                Tasks Pending
+              </span>
+              <span className="text-2xl font-extrabold text-[#1E6BFF] tracking-tight block mt-1">
+                {pendingTasks.length}
+              </span>
+              <span className="text-[11px] font-medium text-slate-500 block mt-0.5 truncate">
+                Due this week
+              </span>
+            </div>
+
+            <div className="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-soft">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block truncate">
+                Internal CGPA
+              </span>
+              <span className="text-2xl font-extrabold text-slate-900 tracking-tight block mt-1">
+                8.42
+              </span>
+              <span className="text-[11px] font-semibold text-emerald-600 block mt-0.5 truncate">
+                Rank #1 in Section
+              </span>
+            </div>
+          </div>
+
+          {/* In-Progress Coursework Spotlight */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-soft space-y-3.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                In Progress Module
+                Active Study Module
               </span>
-              <span className="text-xs font-semibold text-purple-600 bg-purple-50 border border-purple-100 px-2.5 py-0.5 rounded-full">
+              <span className="text-xs font-semibold text-[#1E6BFF] bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full">
                 Unit 3 of 5
               </span>
             </div>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3.5 min-w-0">
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#1E6BFF] flex items-center justify-center shrink-0">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#1E6BFF] flex items-center justify-center shrink-0 border border-blue-100">
                   <Database className="w-6 h-6" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-bold text-base text-slate-800 leading-snug truncate">
+                  <h3 className="font-bold text-base text-slate-900 leading-snug truncate">
                     Database Management Systems
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5 truncate">
-                    Normalization & BCNF Decomposition &bull; Prof. S.K. Sharma
+                    Relational Normalization & BCNF &bull; Prof. Dr. S.K. Sharma
                   </p>
                 </div>
               </div>
 
               <Link to="/study-material" className="w-full sm:w-auto">
-                <button className="w-full sm:w-auto bg-[#1E6BFF] hover:bg-[#155BE5] text-white font-bold text-xs px-5 py-2.5 rounded-full shadow-glow-blue transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0">
+                <button
+                  type="button"
+                  className="w-full sm:w-auto bg-[#1E6BFF] hover:bg-[#155BE5] text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-glow-blue transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                >
                   <Play className="w-3.5 h-3.5 fill-white" />
-                  <span>Resume Lecture</span>
+                  <span>Open Notes</span>
                 </button>
               </Link>
             </div>
 
-            {/* Progress bar */}
+            {/* Attendance Progress bar */}
             <div className="space-y-1.5 pt-1">
               <div className="flex justify-between text-[11px] font-semibold text-slate-500">
-                <span>Progress: 38/42 Lectures Attended</span>
-                <span className="font-bold text-slate-800">90.5%</span>
+                <span>Lecture Coverage: 38/42 Sessions</span>
+                <span className="font-bold text-slate-800">90.5% Attendance</span>
               </div>
-              <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+              <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                 <div
                   className="bg-[#1E6BFF] h-full rounded-full transition-all duration-500"
                   style={{ width: '90.5%' }}
@@ -251,107 +313,108 @@ export const StudentDashboard = () => {
             </div>
           </div>
 
-          {/* "Build Your Skills" 4 Pastel Subject Cards (Exact 4-card grid from screenshot) */}
+          {/* Current Semester Subjects (Modern University Cards) */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-800 tracking-tight">
-                Current Semester Subjects
+              <h2 className="text-sm font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-[#1E6BFF]" />
+                <span>Current Semester Subjects</span>
               </h2>
-              <Link to="/study-material" className="text-xs font-semibold text-[#1E6BFF] hover:underline flex items-center gap-1">
-                <span>All Subjects</span>
+              <Link to="/courses" className="text-xs font-semibold text-[#1E6BFF] hover:underline flex items-center gap-1">
+                <span>View Full Curriculum</span>
                 <ArrowRight className="w-3 h-3" />
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Card 1: Purple (like Listening in Lingora) */}
-              <div className="bg-[#FAF5FF] hover:bg-[#F3E8FF]/60 border border-purple-100 rounded-3xl p-5 transition-all shadow-soft-xs space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Subject 1: DBMS */}
+              <div className="bg-white hover:border-blue-200 border border-slate-200/80 rounded-2xl p-4 transition-all shadow-soft space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center">
-                    <Database className="w-5 h-5" />
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#1E6BFF] flex items-center justify-center">
+                    <Database className="w-4 h-4" />
                   </div>
-                  <span className="text-[11px] font-bold text-purple-700 bg-white/80 px-2.5 py-0.5 rounded-full border border-purple-200/60">
+                  <span className="text-[11px] font-bold text-[#1E6BFF] bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-100">
                     KCS501
                   </span>
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-purple-950">Database Management</h4>
-                  <p className="text-xs text-purple-700/80 mt-0.5">38 / 42 Lectures</p>
+                  <h4 className="font-bold text-sm text-slate-900">Database Management Systems</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">38 / 42 Lectures &bull; Dr. S.K. Sharma</p>
                 </div>
-                <div className="w-full bg-purple-200/60 h-2 rounded-full overflow-hidden">
-                  <div className="bg-purple-600 h-full rounded-full" style={{ width: '90%' }} />
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div className="bg-[#1E6BFF] h-full rounded-full" style={{ width: '90%' }} />
                 </div>
               </div>
 
-              {/* Card 2: Rose/Coral (like Speaking in Lingora) */}
-              <div className="bg-[#FFF1F2] hover:bg-[#FFE4E6]/60 border border-rose-100 rounded-3xl p-5 transition-all shadow-soft-xs space-y-3">
+              {/* Subject 2: Compiler Design */}
+              <div className="bg-white hover:border-blue-200 border border-slate-200/80 rounded-2xl p-4 transition-all shadow-soft space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center">
-                    <Cpu className="w-5 h-5" />
+                  <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    <Cpu className="w-4 h-4" />
                   </div>
-                  <span className="text-[11px] font-bold text-rose-700 bg-white/80 px-2.5 py-0.5 rounded-full border border-rose-200/60">
+                  <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100">
                     KCS502
                   </span>
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-rose-950">Compiler Design</h4>
-                  <p className="text-xs text-rose-700/80 mt-0.5">32 / 40 Lectures</p>
+                  <h4 className="font-bold text-sm text-slate-900">Compiler Design</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">32 / 40 Lectures &bull; Dr. Ananya Sen</p>
                 </div>
-                <div className="w-full bg-rose-200/60 h-2 rounded-full overflow-hidden">
-                  <div className="bg-rose-600 h-full rounded-full" style={{ width: '80%' }} />
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div className="bg-indigo-600 h-full rounded-full" style={{ width: '80%' }} />
                 </div>
               </div>
 
-              {/* Card 3: Emerald (like Vocabulary in Lingora) */}
-              <div className="bg-[#F0FDF4] hover:bg-[#DCFCE7]/60 border border-emerald-100 rounded-3xl p-5 transition-all shadow-soft-xs space-y-3">
+              {/* Subject 3: DAA */}
+              <div className="bg-white hover:border-blue-200 border border-slate-200/80 rounded-2xl p-4 transition-all shadow-soft space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                    <Layers className="w-5 h-5" />
+                  <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                    <Layers className="w-4 h-4" />
                   </div>
-                  <span className="text-[11px] font-bold text-emerald-700 bg-white/80 px-2.5 py-0.5 rounded-full border border-emerald-200/60">
+                  <span className="text-[11px] font-bold text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-md border border-sky-100">
                     KCS503
                   </span>
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-emerald-950">Design & Analysis of Algorithms</h4>
-                  <p className="text-xs text-emerald-700/80 mt-0.5">40 / 42 Lectures</p>
+                  <h4 className="font-bold text-sm text-slate-900">Design & Analysis of Algorithms</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">40 / 42 Lectures &bull; Prof. Rajesh Verma</p>
                 </div>
-                <div className="w-full bg-emerald-200/60 h-2 rounded-full overflow-hidden">
-                  <div className="bg-emerald-600 h-full rounded-full" style={{ width: '95%' }} />
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div className="bg-sky-600 h-full rounded-full" style={{ width: '95%' }} />
                 </div>
               </div>
 
-              {/* Card 4: Amber (like Grammar in Lingora) */}
-              <div className="bg-[#FFFBEB] hover:bg-[#FEF3C7]/60 border border-amber-100 rounded-3xl p-5 transition-all shadow-soft-xs space-y-3">
+              {/* Subject 4: Web Tech */}
+              <div className="bg-white hover:border-blue-200 border border-slate-200/80 rounded-2xl p-4 transition-all shadow-soft space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center">
-                    <Globe className="w-5 h-5" />
+                  <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+                    <Globe className="w-4 h-4" />
                   </div>
-                  <span className="text-[11px] font-bold text-amber-700 bg-white/80 px-2.5 py-0.5 rounded-full border border-amber-200/60">
+                  <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-md border border-teal-100">
                     KCS504
                   </span>
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm text-amber-950">Web Tech & Cloud Computing</h4>
-                  <p className="text-xs text-amber-700/80 mt-0.5">28 / 36 Lectures</p>
+                  <h4 className="font-bold text-sm text-slate-900">Web Tech & Cloud Computing</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">28 / 36 Lectures &bull; Er. Neha Dixit</p>
                 </div>
-                <div className="w-full bg-amber-200/60 h-2 rounded-full overflow-hidden">
-                  <div className="bg-amber-600 h-full rounded-full" style={{ width: '78%' }} />
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div className="bg-teal-600 h-full rounded-full" style={{ width: '78%' }} />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Quick Action Dock */}
+          {/* Quick Action Navigation Grid */}
           <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-2.5">
             {[
               { label: 'Timetable', path: '/timetable', icon: Clock, bg: 'bg-blue-50 text-[#1E6BFF]' },
               { label: 'Attendance', path: '/attendance', icon: Calendar, bg: 'bg-emerald-50 text-emerald-600' },
+              { label: 'Courses', path: '/courses', icon: GraduationCap, bg: 'bg-indigo-50 text-indigo-600' },
               { label: 'Tasks', path: '/assignments', icon: FileCheck2, bg: 'bg-purple-50 text-purple-600' },
               { label: 'Tests', path: '/assessments', icon: Sparkles, bg: 'bg-rose-50 text-rose-600' },
               { label: 'Exams', path: '/exams', icon: Calendar, bg: 'bg-amber-50 text-amber-600' },
-              { label: 'Report Card', path: '/results', icon: Award, bg: 'bg-indigo-50 text-indigo-600' },
-              { label: 'Fees & Pay', path: '/fees', icon: CreditCard, bg: 'bg-sky-50 text-sky-600' },
+              { label: 'Report Card', path: '/results', icon: Award, bg: 'bg-sky-50 text-sky-600' },
               { label: 'E-Library', path: '/study-material', icon: BookOpen, bg: 'bg-teal-50 text-teal-600' },
             ].map((item, idx) => {
               const Icon = item.icon;
@@ -359,7 +422,7 @@ export const StudentDashboard = () => {
                 <Link
                   key={idx}
                   to={item.path}
-                  className="p-2 sm:p-3 rounded-2xl bg-white border border-slate-100 shadow-soft-xs hover:shadow-soft flex flex-col items-center gap-1.5 sm:gap-2 transition-all hover:-translate-y-0.5"
+                  className="p-2 sm:p-3 rounded-2xl bg-white border border-slate-200/80 shadow-soft hover:border-blue-200 flex flex-col items-center gap-1.5 sm:gap-2 transition-all hover:-translate-y-0.5"
                 >
                   <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl ${item.bg} flex items-center justify-center shrink-0`}>
                     <Icon className="w-4 h-4" />
@@ -419,7 +482,7 @@ export const StudentDashboard = () => {
               subtitle="Controller of Examinations"
               icon={Megaphone}
               badge="Official"
-              badgeColor="coral"
+              badgeColor="blue"
               footer={
                 <Link to="/announcements" className="text-xs font-semibold text-[#1E6BFF] hover:underline flex items-center gap-1">
                   <span>All Notices</span>
@@ -457,7 +520,7 @@ export const StudentDashboard = () => {
             <FeesCard fees={data?.fees} />
           </div>
 
-          {/* Tasks & Upcoming Exams */}
+          {/* Coursework Tasks & Upcoming Exams */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Pending Assignments */}
             <NeoCard
@@ -529,13 +592,13 @@ export const StudentDashboard = () => {
           </div>
         </div>
 
-        {/* Right Rail / Widgets Column (Cols 9-12 on lg) matching screenshot */}
+        {/* Right Rail / Widgets Column (Cols 9-12 on lg) */}
         <div className="lg:col-span-4 space-y-6">
-          {/* Widget 1: Circular Daily Goal Ring (Exact match to Lingora Daily Goal) */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-soft text-center space-y-5">
+          {/* Widget 1: Circular Attendance Goal Ring */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-soft text-center space-y-5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Attendance Goal
+                Attendance Compliance
               </span>
               <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-full flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -572,7 +635,7 @@ export const StudentDashboard = () => {
                   {attendancePct}%
                 </span>
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Goal: 75%
+                  Cutoff: 75%
                 </span>
               </div>
             </div>
@@ -581,7 +644,7 @@ export const StudentDashboard = () => {
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-semibold text-slate-500">
                 <span>Weekly Schedule</span>
-                <span className="text-[#1E6BFF]">5/5 Days</span>
+                <span className="text-[#1E6BFF]">5/5 Days Active</span>
               </div>
               <div className="flex items-center justify-between gap-1">
                 {['M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
@@ -606,8 +669,8 @@ export const StudentDashboard = () => {
             </p>
           </div>
 
-          {/* Widget 2: Class Leaderboard (Exact match to Lingora Leaderboard) */}
-          <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-soft space-y-4">
+          {/* Widget 2: Class Academic Leaderboard */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-soft space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
@@ -648,31 +711,38 @@ export const StudentDashboard = () => {
             </div>
 
             <Link to="/results">
-              <button className="w-full py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-100 transition-colors cursor-pointer mt-1">
+              <button
+                type="button"
+                className="w-full py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold border border-slate-100 transition-colors cursor-pointer mt-1"
+              >
                 View Full Rankings
               </button>
             </Link>
           </div>
 
-          {/* Widget 3: Milestone Event / Campus Pass Card */}
-          <div className="bg-gradient-to-br from-indigo-50 via-blue-50/60 to-purple-50/40 rounded-3xl p-6 border border-blue-100 shadow-soft-xs space-y-3">
-            <div className="flex items-center gap-2.5 text-indigo-900">
-              <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center">
-                <Gift className="w-4 h-4" />
+          {/* Widget 3: Quick AI Academic Mentor Card */}
+          <div className="bg-gradient-to-br from-blue-50 via-indigo-50/60 to-purple-50/40 rounded-3xl p-6 border border-blue-100 shadow-soft-xs space-y-3">
+            <div className="flex items-center gap-2.5 text-blue-900">
+              <div className="w-8 h-8 rounded-xl bg-blue-100 text-[#1E6BFF] flex items-center justify-center">
+                <Sparkles className="w-4 h-4" />
               </div>
-              <span className="font-bold text-xs uppercase tracking-wide">Campus Event</span>
+              <span className="font-bold text-xs uppercase tracking-wide">UniMind AI Mentor</span>
             </div>
 
             <h4 className="font-bold text-sm text-slate-900">
-              AKTU TechFest Hackathon 2026
+              Ask Instant Doubt Resolution
             </h4>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Registrations are open for the annual zonal hackathon. Register your project team by Nov 25.
+              Stuck on Normalization or Lexical Analysis? Get step-by-step solutions powered by Groq LLM & AKTU syllabus indexing.
             </p>
 
-            <Link to="/events">
-              <button className="w-full py-2 px-3 rounded-xl bg-[#1E6BFF] hover:bg-[#155BE5] text-white text-xs font-semibold shadow-glow-blue transition-colors cursor-pointer mt-1">
-                Register Team
+            <Link to="/chat">
+              <button
+                type="button"
+                className="w-full py-2 px-3 rounded-xl bg-[#1E6BFF] hover:bg-[#155BE5] text-white text-xs font-semibold shadow-glow-blue transition-colors cursor-pointer mt-1 flex items-center justify-center gap-2"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Chat with AI Tutor</span>
               </button>
             </Link>
           </div>

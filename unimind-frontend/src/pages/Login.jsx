@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export const Login = () => {
-  const { login, loginWithSupabase, loginDemo, resetPassword, isConfigured } = useAuth();
+  const { login, loginDemo, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
@@ -40,7 +40,7 @@ export const Login = () => {
       const res = await login(email, password);
       const userRole = res?.role || res?.profile?.role || 'student';
       if (userRole === 'teacher') {
-        navigate('/teacher/papers');
+        navigate('/teacher/dashboard');
       } else if (userRole === 'admin') {
         navigate('/admin');
       } else if (userRole === 'parent') {
@@ -58,7 +58,7 @@ export const Login = () => {
   const handleQuickDemo = (role) => {
     loginDemo(role);
     if (role === 'teacher') {
-      navigate('/teacher/papers');
+      navigate('/teacher/dashboard');
     } else if (role === 'admin') {
       navigate('/admin');
     } else if (role === 'parent') {
