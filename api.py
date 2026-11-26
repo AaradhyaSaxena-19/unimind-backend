@@ -38,6 +38,7 @@ from supabase import ClientOptions, create_client
 import chatbot
 import upload_paper
 import academic_api
+import jobs_api
 
 load_dotenv()
 
@@ -66,6 +67,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(academic_api.router, prefix="/api")
+app.include_router(jobs_api.router, prefix="/api")
 
 
 # ---------------------------------------------------------------------

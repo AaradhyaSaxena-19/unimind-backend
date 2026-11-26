@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { fetchStudentAcademicData, isSupabaseConfigured } from '../services/supabase';
 import { getTimetable, getAnnouncements, getExams, getEvents } from '../services/academicService';
+import { getMe } from '../services/linkageService';
 import AttendanceWidget from '../components/student/AttendanceWidget';
 import MissedLecturesList from '../components/student/MissedLecturesList';
 import MarksSummary from '../components/student/MarksSummary';
@@ -29,7 +30,73 @@ import {
   Play,
   CheckCircle2,
   GraduationCap,
+  Briefcase,
 } from 'lucide-react';
+
+// Turn the connected /api/academic/me payload into the shape the dashboard widgets use.
+const buildSubjectsFromTimetable = (timetable = {}) => {
+  const seen = new Map();
+  Object.values(timetable).forEach((slots) => {
+    (slots || []).forEach((slot) => {
+      if (!seen.has(slot.subject_code)) {
+        seen.set(slot.subject_code, {
+          id: slot.subject_code,
+          code: slot.subject_code,
+          name: slot.subject_name,
+        });
+      }
+    });
+  });
+  return Array.from(seen.values());
+};
+
+const mapMeToDashboard = (me, timetable) => {
+  if (!me || me.role !== 'student') return null;
+  const items = me.assignments?.items || [];
+  const fees = me.fees || {};
+  const pct = me.attendance?.percentage ?? 0;
+
+  return {
+    profile: me.profile,
+    rules: { min_attendance_percent: '75', attendance_method: 'lecture', lectures_per_day: '4' },
+    overall: {
+      days_present: Math.round((42 * pct) / 100),
+      total_days: 42,
+      lectures_attended: me.attendance?.lectures_attended || 0,
+      lectures_held: me.attendance?.lectures_held || 168,
+    },
+    monthly: [],
+    missedLectures: [],
+    subjects: buildSubjectsFromTimetable(timetable),
+    marks: items
+      .filter((item) => item.marks_awarded !== null && item.marks_awarded !== undefined)
+      .map((item) => ({
+        subject_id: item.subject_code,
+        exam_type: item.title.length > 30 ? `${item.title.slice(0, 30)}...` : item.title,
+        marks_obtained: item.marks_awarded,
+        max_marks: item.max_marks,
+      })),
+    fees: [
+      {
+        description: 'Semester academic, exam & amenity fee',
+        total_amount: fees.total_fee || 0,
+        paid_amount: fees.paid_fee || 0,
+        pending_amount: fees.pending_fee || 0,
+        due_date: fees.next_due_date || 'Cleared',
+      },
+    ],
+    assignments: items.map((item) => ({
+      id: item.id,
+      title: item.title,
+      due_date: item.due_date,
+      isSubmitted: item.is_submitted,
+    })),
+    results: me.results,
+    faculty: me.faculty,
+    resume: me.resume,
+    applications: me.applications,
+  };
+};
 
 export const StudentDashboard = () => {
   const { user, profile } = useAuth();
@@ -44,8 +111,9 @@ export const StudentDashboard = () => {
 
     const loadData = async () => {
       try {
-        const [acad, tt, ann, ex, _ev] = await Promise.all([
+        const [acad, me, tt, ann, ex, _ev] = await Promise.all([
           isSupabaseConfigured() && user ? fetchStudentAcademicData(user) : null,
+          getMe().catch(() => null),
           getTimetable().catch(() => ({ timetable: {} })),
           getAnnouncements().catch(() => ({ announcements: [] })),
           getExams().catch(() => ({ exams: [] })),
@@ -54,7 +122,7 @@ export const StudentDashboard = () => {
 
         if (mounted) {
           setData(
-            acad || {
+            mapMeToDashboard(me, tt.timetable) || acad || {
               profile: profile || {
                 full_name: 'Aaradhya Saxena',
                 course: 'B.Tech Computer Science & Engineering',
@@ -206,6 +274,16 @@ export const StudentDashboard = () => {
                     Curriculum & Subjects
                   </button>
                 </Link>
+
+                <Link to="/jobs" className="w-full sm:w-auto">
+                  <button
+                    type="button"
+                    className="w-full sm:w-auto bg-emerald-400 hover:bg-emerald-300 text-emerald-950 font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-colors cursor-pointer text-center justify-center flex items-center gap-1.5"
+                  >
+                    <Briefcase className="w-4 h-4" />
+                    <span>Job Finds</span>
+                  </button>
+                </Link>
               </div>
             </div>
           </div>
@@ -253,10 +331,10 @@ export const StudentDashboard = () => {
                 Internal CGPA
               </span>
               <span className="text-2xl font-extrabold text-slate-900 tracking-tight block mt-1">
-                8.42
+                {data?.results?.current_cgpa ?? '—'}
               </span>
               <span className="text-[11px] font-semibold text-emerald-600 block mt-0.5 truncate">
-                Rank #1 in Section
+                {data?.results?.published === false ? 'Result awaited' : `Published · Sem ${studentProfile?.semester || 5}`}
               </span>
             </div>
           </div>

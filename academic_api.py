@@ -12,6 +12,8 @@ from pydantic import BaseModel, Field
 import os
 import uuid
 
+import jobs_store
+
 router = APIRouter(prefix="/academic", tags=["academic"])
 
 # =====================================================================
@@ -465,8 +467,20 @@ class AdminEntityCreate(BaseModel):
 # =====================================================================
 
 @router.get("/profile")
-def get_user_profile(role: str = "student", student_id: Optional[str] = None):
-    """Return student or parent profile."""
+def get_user_profile(role: str = "student", student_id: Optional[str] = None,
+                     authorization: Optional[str] = Header(default=None)):
+    """Return the profile of whoever signed in (the token wins over the role hint)."""
+    actor = resolve_actor(authorization)
+    if actor:
+        if actor["role"] == "student":
+            return {"profile": student_public_profile(actor["record"]), "role": "student"}
+        if actor["role"] == "teacher":
+            return {"profile": faculty_public_profile(actor["record"]), "role": "teacher"}
+        if actor["role"] == "parent":
+            return {"profile": parent_public_profile(actor["record"]), "role": "parent"}
+        if actor["role"] == "admin":
+            return {"profile": actor["record"], "role": "admin"}
+
     if role == "parent":
         return {"profile": PARENT_DB["parent1"], "role": "parent"}
     if student_id and student_id in STUDENT_DB:
@@ -499,7 +513,24 @@ def get_user_profile(role: str = "student", student_id: Optional[str] = None):
     return {"profile": STUDENT_DB.get("student1", {}), "role": "student"}
 
 @router.post("/profile/update")
-def update_profile(req: ProfileUpdateRequest):
+def update_profile(req: ProfileUpdateRequest, authorization: Optional[str] = Header(default=None)):
+    actor = resolve_actor(authorization)
+    if actor and actor["role"] == "student":
+        student = actor["record"]
+        if req.phone:
+            student["phone"] = req.phone
+        if req.address:
+            student["address"] = req.address
+        if req.parent_phone:
+            student["parent_phone"] = req.parent_phone
+        jobs_store.log("student", student.get("name", "Student"), "Updated contact details", student.get("roll_no", ""))
+        return {"success": True, "profile": student_public_profile(student)}
+    if actor and actor["role"] == "teacher":
+        faculty = actor["record"]
+        if req.phone:
+            faculty["phone"] = req.phone
+        return {"success": True, "profile": faculty_public_profile(faculty)}
+
     student = STUDENT_DB["student1"]
     if req.phone:
         student["phone"] = req.phone
@@ -518,9 +549,12 @@ def get_timetable(day: Optional[str] = None):
     return {"timetable": TIMETABLE, "today": today_name}
 
 @router.get("/assignments")
-def get_assignments(status: Optional[str] = "all", subject: Optional[str] = None):
-    """List student assignments with optional filters."""
-    results = ASSIGNMENTS
+def get_assignments(status: Optional[str] = "all", subject: Optional[str] = None,
+                   authorization: Optional[str] = Header(default=None)):
+    """List assignments with the signed-in student's own submission + marks."""
+    actor = resolve_actor(authorization)
+    student_id = actor["id"] if actor and actor["role"] == "student" else None
+    results = [_assignment_view(item, student_id) for item in ASSIGNMENTS]
     if status == "pending":
         results = [a for a in results if not a["is_submitted"]]
     elif status == "submitted":
@@ -535,15 +569,36 @@ def get_assignments(status: Optional[str] = "all", subject: Optional[str] = None
     return {"assignments": results, "total": len(results)}
 
 @router.post("/assignments/submit")
-def submit_assignment(req: AssignmentSubmitRequest):
-    """Submit an assignment."""
+def submit_assignment(req: AssignmentSubmitRequest, authorization: Optional[str] = Header(default=None)):
+    """Submit an assignment for the signed-in student (faculty sees it immediately)."""
+    actor = resolve_actor(authorization)
+    student_id = actor["id"] if actor and actor["role"] == "student" else None
     for asg in ASSIGNMENTS:
-        if asg["id"] == req.assignment_id:
-            asg["is_submitted"] = True
-            asg["submission_date"] = date.today().isoformat()
-            asg["submission_file"] = req.file_name
-            asg["status"] = "submitted"
-            return {"success": True, "message": f"Assignment '{asg['title']}' submitted successfully!", "assignment": asg}
+        if asg["id"] != req.assignment_id:
+            continue
+
+        if student_id:
+            record = actor["record"]
+            submission = _upsert_submission(
+                assignment_id=asg["id"],
+                student_id=student_id,
+                student_name=record.get("name", "Student"),
+                file_name=req.file_name,
+                remarks=req.remarks,
+            )
+            jobs_store.log("student", record.get("name", "Student"), "Submitted an assignment", asg["title"], student_id=student_id)
+            return {
+                "success": True,
+                "message": f"Assignment '{asg['title']}' submitted successfully!",
+                "assignment": _assignment_view(asg, student_id),
+                "submission": submission,
+            }
+
+        asg["is_submitted"] = True
+        asg["submission_date"] = date.today().isoformat()
+        asg["submission_file"] = req.file_name
+        asg["status"] = "submitted"
+        return {"success": True, "message": f"Assignment '{asg['title']}' submitted successfully!", "assignment": asg}
     raise HTTPException(404, "Assignment not found")
 
 @router.get("/assessments")
@@ -625,18 +680,27 @@ def get_exams():
     return {"exams": EXAMS, "session": "Odd Semester 2026-27"}
 
 @router.get("/results")
-def get_results():
-    """Get semester results, marks, grades, and CGPA/SGPA."""
+def get_results(authorization: Optional[str] = Header(default=None)):
+    """Get the signed-in student's own result card (or the class sample)."""
+    actor = resolve_actor(authorization)
+    if actor and actor["role"] == "student":
+        return _student_result_view(actor["record"])
     return RESULTS
 
 @router.get("/fees")
-def get_fees():
-    """Get fee ledger, dues, breakdown, and payment history."""
+def get_fees(authorization: Optional[str] = Header(default=None)):
+    """Get the signed-in student's own fee ledger (admin sees the same numbers)."""
+    actor = resolve_actor(authorization)
+    if actor and actor["role"] == "student":
+        return _student_fee_view(actor["record"])
     return FEES_DATA
 
 @router.post("/fees/pay")
-def pay_fee(req: PaymentRequest):
+def pay_fee(req: PaymentRequest, authorization: Optional[str] = Header(default=None)):
     """Process online fee payment through secure gateway flow (simulated Razorpay/UPI)."""
+    actor = resolve_actor(authorization)
+    if actor and actor["role"] == "student":
+        return _pay_student_fee(actor["record"], req)
     if req.amount <= 0:
         raise HTTPException(400, "Payment amount must be greater than zero")
     if req.amount > FEES_DATA["pending_fee"]:
@@ -783,8 +847,13 @@ def verify_qr(req: QRVerifyRequest):
     }
 
 @router.get("/parent/child")
-def get_parent_child_data():
-    """Get linked child's full academic summary for parent portal."""
+def get_parent_child_data(authorization: Optional[str] = Header(default=None)):
+    """Get the signed-in parent's own child's academic summary."""
+    actor = resolve_actor(authorization)
+    if actor and actor["role"] == "parent":
+        child = _find_student_by_roll((actor["record"] or {}).get("child_roll", ""))
+        if child:
+            return _parent_child_view(child)
     student = STUDENT_DB["student1"]
     return {
         "student": student,
@@ -969,10 +1038,61 @@ ADMIN_STUDENTS = [
     }
 ]
 
+# Every roster record also carries the academic + financial numbers that the other
+# roles read. Student, faculty and admin screens therefore show exactly the same
+# figures instead of three disconnected mock datasets.
+_FEE_SEED = {
+    "std-1": (85000, 65000, 8.42, 8.65),
+    "std-2": (85000, 85000, 8.10, 8.24),
+    "std-3": (78000, 60000, 7.65, 7.80),
+    "std-4": (85000, 85000, 9.02, 9.14),
+}
+for _seed_student in ADMIN_STUDENTS:
+    _total, _paid, _cgpa, _sgpa = _FEE_SEED.get(_seed_student["id"], (85000, 0, None, None))
+    _seed_student.setdefault("fee_total", _total)
+    _seed_student.setdefault("fee_paid", _paid)
+    _seed_student.setdefault("cgpa", _cgpa)
+    _seed_student.setdefault("sgpa", _sgpa)
+    _seed_student.setdefault("mentor", "Dr. Sharma")
+    _seed_student.setdefault("semesters", [])
+
 ADMIN_FACULTY = [
-    {"id": "fac-1", "name": "Dr. Sharma", "email": "teacher1@example.com", "department": "Computer Science", "subjects": ["KCS501 DBMS", "KCS551 DBMS Lab"], "designation": "Associate Professor"},
-    {"id": "fac-2", "name": "Prof. Verma", "email": "verma@example.com", "department": "Computer Science", "subjects": ["KCS502 Compiler Design"], "designation": "Assistant Professor"},
-    {"id": "fac-3", "name": "Dr. Gupta", "email": "gupta@example.com", "department": "Computer Science", "subjects": ["KCS503 DAA", "KCS553 DAA Lab"], "designation": "Professor"}
+    {
+        "id": "fac-1",
+        "name": "Dr. Sharma",
+        "email": "teacher1@example.com",
+        "department": "Computer Science & Engineering",
+        "subjects": ["KCS501 DBMS", "KCS551 DBMS Lab"],
+        "designation": "Associate Professor",
+        "password": "teacher123",
+        "semesters": [5],
+        "phone": "+91 98765 70001",
+        "office": "Block B - 204",
+    },
+    {
+        "id": "fac-2",
+        "name": "Prof. Verma",
+        "email": "verma@example.com",
+        "department": "Computer Science & Engineering",
+        "subjects": ["KCS502 Compiler Design"],
+        "designation": "Assistant Professor",
+        "password": "verma123",
+        "semesters": [5],
+        "phone": "+91 98765 70002",
+        "office": "Block B - 210",
+    },
+    {
+        "id": "fac-3",
+        "name": "Dr. Gupta",
+        "email": "gupta@example.com",
+        "department": "Computer Science & Engineering",
+        "subjects": ["KCS503 DAA", "KCS553 DAA Lab"],
+        "designation": "Professor",
+        "password": "gupta123",
+        "semesters": [5],
+        "phone": "+91 98765 70003",
+        "office": "Block B - 108",
+    },
 ]
 
 ADMIN_COURSES = [
@@ -1055,6 +1175,11 @@ def create_student(data: Dict[str, Any]):
         "pincode": data.get("pincode") or "243001",
         "attendance": "100.0%",
         "status": data.get("status") or "Active",
+        "fee_total": 85000,
+        "fee_paid": 0,
+        "cgpa": None,
+        "sgpa": None,
+        "mentor": data.get("mentor") or "Dr. Sharma",
         "created_at": date.today().isoformat()
     }
     ADMIN_STUDENTS.insert(0, new_student)
@@ -1153,7 +1278,7 @@ def login_student(data: Dict[str, Any]):
         return {
             "success": True,
             "role": "admin",
-            "token": f"admin_jwt_{uuid.uuid4().hex[:12]}",
+            "token": f"admin.admin-1.{uuid.uuid4().hex[:12]}",
             "user": {"id": "admin-1", "email": "admin1@example.com", "name": "System Admin"},
             "profile": {
                 "id": "admin-1",
@@ -1165,22 +1290,26 @@ def login_student(data: Dict[str, Any]):
             }
         }
 
-    # Check Faculty credentials
-    if identifier.lower() in ["teacher", "faculty", "teacher1@example.com", "dr.sharma@rbmi.in"] and password in ["teacher123", "teacher"]:
+    # Check Faculty credentials - every faculty member the admin creates can sign in
+    faculty = None
+    for row in ADMIN_FACULTY:
+        aliases = {row.get("email", "").lower(), row.get("name", "").lower()}
+        if identifier.lower() in aliases and password == row.get("password"):
+            faculty = row
+            break
+    if not faculty and identifier.lower() in ("teacher", "faculty") and password in ("teacher123", "teacher"):
+        faculty = ADMIN_FACULTY[0]
+    if faculty:
         return {
             "success": True,
             "role": "teacher",
-            "token": f"teacher_jwt_{uuid.uuid4().hex[:12]}",
-            "user": {"id": "fac-1", "email": "teacher1@example.com", "name": "Dr. Sharma"},
-            "profile": {
-                "id": "fac-1",
-                "full_name": "Dr. Sharma",
-                "role": "teacher",
-                "email": "teacher1@example.com",
-                "department": "Computer Science & Engineering",
-                "status": "Active",
-                "college": "RBMI Group of Institutions"
-            }
+            "token": f"teacher.{faculty['id']}.{uuid.uuid4().hex[:12]}",
+            "user": {
+                "id": faculty["id"],
+                "email": faculty.get("email", ""),
+                "name": faculty.get("name", "Faculty"),
+            },
+            "profile": faculty_public_profile(faculty),
         }
 
     # Check Parent credentials
@@ -1188,7 +1317,7 @@ def login_student(data: Dict[str, Any]):
         return {
             "success": True,
             "role": "parent",
-            "token": f"parent_jwt_{uuid.uuid4().hex[:12]}",
+            "token": f"parent.parent-1.{uuid.uuid4().hex[:12]}",
             "user": {"id": "parent-1", "email": "parent1@example.com", "name": "Rajesh Saxena"},
             "profile": PARENT_DB.get("parent1", {
                 "id": "parent-1",
@@ -1258,7 +1387,7 @@ def login_student(data: Dict[str, Any]):
     return {
         "success": True,
         "role": "student",
-        "token": f"student_jwt_{uuid.uuid4().hex[:12]}",
+        "token": f"student.{student_id}.{uuid.uuid4().hex[:12]}",
         "user": {
             "id": student_id,
             "email": target_student.get("email"),
@@ -1268,3 +1397,855 @@ def login_student(data: Dict[str, Any]):
         "profile": student_profile,
         "message": f"Welcome back, {target_student['name']}!"
     }
+
+
+# =====================================================================
+# CROSS-ROLE LINKAGE  (student <-> faculty <-> admin)
+# ---------------------------------------------------------------------
+# Everything below connects the three portals to one set of facts:
+#   * a student created by the admin can sign in and sees their own numbers
+#   * that student appears in the faculty roster (attendance, dues, resume)
+#   * faculty assignments + circulars reach the student, and the student's
+#     submission comes back to faculty for grading
+#   * resumes and job applications uploaded in Job Finds are visible to
+#     faculty and admin, and campus openings posted by them reach students
+# =====================================================================
+
+ADMIN_PROFILE: Dict[str, Any] = {
+    "id": "admin-1",
+    "full_name": "System Administrator",
+    "name": "System Administrator",
+    "role": "admin",
+    "email": "admin1@example.com",
+    "designation": "Registrar & System Administrator",
+    "status": "Active",
+    "college": "RBMI Group of Institutions, Bareilly",
+}
+
+SUBMISSIONS: List[Dict[str, Any]] = [
+    {
+        "id": "sub-1",
+        "assignment_id": "asg-1",
+        "student_id": "std-1",
+        "student_name": "Aaradhya Saxena",
+        "file_name": "Aaradhya_DBMS_Assignment1.pdf",
+        "submitted_at": "2026-11-12",
+        "marks": 18,
+        "remarks": "Well structured ER diagram and correct 3NF mapping.",
+        "graded_by": "Dr. Sharma",
+        "graded_at": "2026-11-14",
+        "status": "graded",
+    },
+    {
+        "id": "sub-2",
+        "assignment_id": "asg-4",
+        "student_id": "std-1",
+        "student_name": "Aaradhya Saxena",
+        "file_name": "CyberLaw_CaseStudy_Final.pdf",
+        "submitted_at": "2026-11-08",
+        "marks": 14,
+        "remarks": "Good case selection, cite one more statute next time.",
+        "graded_by": "Dr. K. Saxena",
+        "graded_at": "2026-11-10",
+        "status": "graded",
+    },
+    {
+        "id": "sub-3",
+        "assignment_id": "asg-1",
+        "student_id": "std-4",
+        "student_name": "Vikram Singh",
+        "file_name": "Vikram_DBMS_A1.pdf",
+        "submitted_at": "2026-11-13",
+        "marks": None,
+        "remarks": "",
+        "graded_by": "",
+        "graded_at": "",
+        "status": "submitted",
+    },
+]
+
+
+# ---------------------------------------------------- identity / tokens
+def _token_of(authorization: Optional[str]) -> str:
+    if not authorization:
+        return ""
+    value = authorization.strip()
+    if value.lower().startswith("bearer "):
+        value = value[7:].strip()
+    return value
+
+
+def _find_student(student_id: str) -> Optional[Dict[str, Any]]:
+    for row in ADMIN_STUDENTS:
+        if row.get("id") == student_id:
+            return row
+    return None
+
+
+def _find_student_by_roll(roll_no: str) -> Optional[Dict[str, Any]]:
+    if not roll_no:
+        return None
+    for row in ADMIN_STUDENTS:
+        if str(row.get("roll_no", "")).strip().lower() == str(roll_no).strip().lower():
+            return row
+    return None
+
+
+def _find_faculty(faculty_id: str) -> Optional[Dict[str, Any]]:
+    for row in ADMIN_FACULTY:
+        if row.get("id") == faculty_id:
+            return row
+    return None
+
+
+def resolve_actor(authorization: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Turn the login token into the actual caller (role + roster record).
+
+    Tokens are issued as  <role>.<record-id>.<random>  by /auth/login, e.g.
+    student.std-3.8f2c1a9b4d
+    teacher.fac-2.51ab77c0e9
+    admin.admin-1.9d0fa1c2b3
+    parent.parent-1.73a1c9b02e
+    """
+    token = _token_of(authorization)
+    if not token:
+        return None
+
+    role, identifier = "", ""
+    parts = token.split(".")
+    if len(parts) >= 3 and parts[0] in ("student", "teacher", "admin", "parent"):
+        role, identifier = parts[0], parts[1]
+    elif token.startswith("student_jwt_"):  # tokens issued by the older build
+        role, identifier = "student", "std-1"
+    elif token.startswith("demo_token_"):
+        pieces = token.split("_")
+        role = pieces[2] if len(pieces) > 2 else "student"
+        identifier = {
+            "student": "std-1",
+            "teacher": "fac-1",
+            "admin": "admin-1",
+            "parent": "parent-1",
+        }.get(role, "std-1")
+    else:
+        return None
+
+    if role == "student":
+        record = _find_student(identifier) or _find_student("std-1")
+        if not record:
+            return None
+        name = record.get("name") or "Student"
+    elif role == "teacher":
+        record = _find_faculty(identifier) or (ADMIN_FACULTY[0] if ADMIN_FACULTY else None)
+        if not record:
+            return None
+        name = record.get("name") or "Faculty"
+    elif role == "parent":
+        record = PARENT_DB.get("parent1")
+        name = (record or {}).get("full_name", "Parent")
+    else:
+        record = ADMIN_PROFILE
+        name = ADMIN_PROFILE["full_name"]
+
+    return {"role": role, "id": identifier or record.get("id"), "record": record, "name": name}
+
+
+def _require(authorization: Optional[str], roles: List[str], what: str = "This action") -> Dict[str, Any]:
+    actor = resolve_actor(authorization)
+    if not actor:
+        raise HTTPException(401, "Please sign in again - your session could not be read.")
+    if actor["role"] not in roles:
+        raise HTTPException(403, f"{what} is only for: {', '.join(roles)} accounts.")
+    return actor
+
+
+# ------------------------------------------------------- profile shaping
+def _attendance_percent(student: Dict[str, Any]) -> float:
+    raw = str(student.get("attendance", "0")).replace("%", "").strip()
+    try:
+        return max(0.0, min(100.0, float(raw)))
+    except ValueError:
+        return 0.0
+
+
+def _number(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def student_public_profile(student: Dict[str, Any]) -> Dict[str, Any]:
+    semester = int(student.get("semester") or 1)
+    return {
+        "id": student.get("id"),
+        "full_name": student.get("name"),
+        "name": student.get("name"),
+        "roll_no": student.get("roll_no"),
+        "camu_id": student.get("camu_id"),
+        "course": f"{student.get('course', 'B.Tech')} {student.get('branch', 'Computer Science & Engineering')}",
+        "branch": student.get("branch"),
+        "year": max(1, (semester + 1) // 2),
+        "semester": semester,
+        "section": student.get("section", "A"),
+        "batch": student.get("batch"),
+        "email": student.get("email"),
+        "phone": student.get("phone"),
+        "photo_url": student.get("photo_url"),
+        "attendance": student.get("attendance"),
+        "status": student.get("status", "Active"),
+        "dob": student.get("dob"),
+        "gender": student.get("gender"),
+        "blood_group": student.get("blood_group"),
+        "parent_name": student.get("parent_name"),
+        "parent_phone": student.get("parent_phone"),
+        "parent_email": student.get("parent_email"),
+        "address": student.get("address"),
+        "mentor": student.get("mentor"),
+        "role": "student",
+        "college": "RBMI Group of Institutions, Bareilly",
+        "resume_uploaded": bool(student.get("resume_uploaded")),
+    }
+
+
+def faculty_public_profile(faculty: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": faculty.get("id"),
+        "full_name": faculty.get("name"),
+        "name": faculty.get("name"),
+        "role": "teacher",
+        "email": faculty.get("email"),
+        "department": faculty.get("department", "Computer Science & Engineering"),
+        "designation": faculty.get("designation", "Faculty"),
+        "subjects": faculty.get("subjects", []),
+        "semesters": faculty.get("semesters", []),
+        "phone": faculty.get("phone"),
+        "office": faculty.get("office"),
+        "status": faculty.get("status", "Active"),
+        "college": "RBMI Group of Institutions, Bareilly",
+    }
+
+
+def parent_public_profile(parent: Dict[str, Any]) -> Dict[str, Any]:
+    child = _find_student_by_roll(parent.get("child_roll", ""))
+    return {
+        **parent,
+        "role": "parent",
+        "college": "RBMI Group of Institutions, Bareilly",
+        "child_name": (child or {}).get("name", parent.get("child_name")),
+        "child_semester": (child or {}).get("semester", parent.get("child_semester")),
+    }
+
+
+# ---------------------------------------------------------- submissions
+def _submission_for(assignment_id: str, student_id: str) -> Optional[Dict[str, Any]]:
+    for sub in SUBMISSIONS:
+        if sub["assignment_id"] == assignment_id and sub["student_id"] == student_id:
+            return sub
+    return None
+
+
+def _upsert_submission(assignment_id: str, student_id: str, student_name: str,
+                       file_name: str, remarks: Optional[str] = None) -> Dict[str, Any]:
+    existing = _submission_for(assignment_id, student_id)
+    if existing:
+        existing.update({
+            "file_name": file_name,
+            "student_name": student_name,
+            "submitted_at": date.today().isoformat(),
+            "status": "resubmitted" if existing.get("marks") is not None else "submitted",
+        })
+        if remarks:
+            existing["student_remarks"] = remarks
+        return existing
+
+    submission = {
+        "id": f"sub-{uuid.uuid4().hex[:8]}",
+        "assignment_id": assignment_id,
+        "student_id": student_id,
+        "student_name": student_name,
+        "file_name": file_name,
+        "submitted_at": date.today().isoformat(),
+        "marks": None,
+        "remarks": remarks or "",
+        "graded_by": "",
+        "graded_at": "",
+        "status": "submitted",
+    }
+    SUBMISSIONS.insert(0, submission)
+    return submission
+
+
+def _assignment_view(assignment: Dict[str, Any], student_id: Optional[str]) -> Dict[str, Any]:
+    item = dict(assignment)
+    if not student_id:
+        return item
+    submission = _submission_for(assignment["id"], student_id)
+    item["is_submitted"] = bool(submission)
+    item["submission_date"] = submission["submitted_at"] if submission else None
+    item["submission_file"] = submission["file_name"] if submission else None
+    item["marks_awarded"] = submission.get("marks") if submission else None
+    item["feedback"] = submission.get("remarks") if submission else ""
+    item["status"] = (
+        "graded" if submission and submission.get("marks") is not None
+        else "submitted" if submission
+        else "pending"
+    )
+    return item
+
+
+def _student_assignments(student_id: str) -> Dict[str, Any]:
+    items = [_assignment_view(item, student_id) for item in ASSIGNMENTS]
+    graded = [item for item in items if item["status"] == "graded"]
+    submitted = [item for item in items if item["is_submitted"]]
+    return {
+        "total": len(items),
+        "submitted": len(submitted),
+        "pending": len(items) - len(submitted),
+        "graded": len(graded),
+        "average_marks": round(
+            sum(_number(item.get("marks_awarded")) for item in graded) / len(graded), 1
+        ) if graded else None,
+        "items": items,
+    }
+
+
+# --------------------------------------------------------- money / results
+def _student_fee_view(student: Dict[str, Any]) -> Dict[str, Any]:
+    total = _number(student.get("fee_total"), 85000.0) or 85000.0
+    paid = min(_number(student.get("fee_paid")), total)
+    pending = max(0.0, total - paid)
+
+    heads = [
+        ("Annual Academic Tuition Fee", 0.765),
+        ("University Exam & Enrollment Fee", 0.076),
+        ("Advanced Computing & AI Lab Amenity", 0.1),
+        ("Library, E-Journals & Book Bank", 0.059),
+    ]
+    remaining_paid = paid
+    breakdown = []
+    for label, share in heads:
+        amount = round(total * share, -2)
+        settled = min(amount, remaining_paid)
+        remaining_paid = max(0.0, remaining_paid - settled)
+        breakdown.append({
+            "item": label,
+            "amount": int(amount),
+            "paid": int(settled),
+            "status": "paid" if settled >= amount else "pending",
+        })
+
+    history = list(student.get("fee_history") or [])
+    if not history and paid > 0:
+        history = [{
+            "id": "pay-101",
+            "ref": f"RBMI-FEE-{student.get('roll_no', '2026')}-8941",
+            "date": "2026-08-14",
+            "amount": int(paid),
+            "mode": "Online UPI / NetBanking",
+            "status": "Success",
+            "receipt_no": "REC-94102",
+        }]
+
+    return {
+        "student_name": student.get("name"),
+        "roll_no": student.get("roll_no"),
+        "total_fee": int(total),
+        "paid_fee": int(paid),
+        "pending_fee": int(pending),
+        "next_due_date": FEES_DATA["next_due_date"] if pending > 0 else "",
+        "breakdown": breakdown,
+        "history": history,
+    }
+
+
+def _pay_student_fee(student: Dict[str, Any], req: PaymentRequest) -> Dict[str, Any]:
+    if req.amount <= 0:
+        raise HTTPException(400, "Payment amount must be greater than zero")
+    total = _number(student.get("fee_total"), 85000.0)
+    paid = _number(student.get("fee_paid"))
+    pending = max(0.0, total - paid)
+    if req.amount > pending:
+        raise HTTPException(400, f"Amount exceeds remaining pending fee of ₹{int(pending)}")
+
+    transaction = {
+        "id": f"PAY-{uuid.uuid4().hex[:8].upper()}",
+        "ref": f"RBMI-FEE-2026-{uuid.uuid4().hex[:4].upper()}",
+        "date": date.today().isoformat(),
+        "amount": req.amount,
+        "mode": req.payment_mode,
+        "status": "Success",
+        "receipt_no": f"REC-{uuid.uuid4().hex[:6].upper()}",
+    }
+    student["fee_paid"] = paid + req.amount
+    student.setdefault("fee_history", []).insert(0, transaction)
+    jobs_store.log("student", student.get("name", "Student"), "Paid semester fees",
+                   f"₹{int(req.amount):,} via {req.payment_mode}", student_id=student.get("id"))
+
+    ledger = _student_fee_view(student)
+    return {
+        "success": True,
+        "message": f"Payment of ₹{req.amount:,.2f} completed successfully!",
+        "transaction": transaction,
+        "remaining_pending": ledger["pending_fee"],
+        "fees": ledger,
+    }
+
+
+def _student_result_view(student: Dict[str, Any]) -> Dict[str, Any]:
+    cgpa = student.get("cgpa")
+    published = cgpa is not None
+    return {
+        **RESULTS,
+        "student_name": student.get("name"),
+        "roll_no": student.get("roll_no"),
+        "published": published,
+        "current_cgpa": _number(cgpa),
+        "current_sgpa": _number(student.get("sgpa") or cgpa),
+        "semesters": RESULTS["semesters"] if published else [],
+        "message": "" if published else "Your result card has not been published yet.",
+    }
+
+
+def _parent_child_view(student: Dict[str, Any]) -> Dict[str, Any]:
+    pct = _attendance_percent(student)
+    fees = _student_fee_view(student)
+    graded = [sub for sub in SUBMISSIONS if sub["student_id"] == student.get("id") and sub.get("marks") is not None]
+    return {
+        "student": student_public_profile(student),
+        "attendance": {
+            "percentage": round(pct, 1),
+            "days_present": round(42 * pct / 100),
+            "total_days": 42,
+            "status": "Safe (Above 75%)" if pct >= 75 else "Below 75% - condonation required",
+            "leave_advice": f"Up to {max(0, int(42 * (pct - 75) / 100))} days leave safe" if pct >= 75 else "Attend all remaining lectures",
+        },
+        "academic": {
+            "cgpa": _number(student.get("cgpa")),
+            "sgpa": _number(student.get("sgpa")),
+            "rank": "Top 10%" if _number(student.get("cgpa")) >= 8 else "Improving",
+            "active_backlogs": 0,
+        },
+        "fees": {
+            "total": fees["total_fee"],
+            "paid": fees["paid_fee"],
+            "pending": fees["pending_fee"],
+            "due_date": fees["next_due_date"],
+        },
+        "recent_marks": [
+            {
+                "subject": sub.get("assignment_id", "").upper(),
+                "exam": sub.get("assignment_id"),
+                "score": f"{sub['marks']}",
+            }
+            for sub in graded[:4]
+        ],
+        "mentor_remarks": (
+            f"{student.get('name')} is mentored by {student.get('mentor', 'the class mentor')}. "
+            f"Current attendance is {round(pct, 1)}%."
+        ),
+    }
+
+
+# ---------------------------------------------------------- roster rows
+def student_roster_row(student: Dict[str, Any]) -> Dict[str, Any]:
+    resume = jobs_store.get_resume(student.get("id", ""))
+    applications = jobs_store.list_applications(student.get("id", ""))
+    subs = [row for row in SUBMISSIONS if row["student_id"] == student.get("id")]
+    pending_subs = [row for row in subs if row.get("marks") is None]
+    fees = _student_fee_view(student)
+    return {
+        "id": student.get("id"),
+        "name": student.get("name"),
+        "roll_no": student.get("roll_no"),
+        "email": student.get("email"),
+        "phone": student.get("phone"),
+        "course": student.get("course"),
+        "branch": student.get("branch"),
+        "semester": student.get("semester"),
+        "section": student.get("section"),
+        "status": student.get("status"),
+        "attendance": round(_attendance_percent(student), 1),
+        "cgpa": student.get("cgpa"),
+        "pending_fee": fees["pending_fee"],
+        "resume_uploaded": bool(resume),
+        "resume_skills": (resume or {}).get("skills", [])[:8],
+        "applications": len(applications),
+        "submissions": len(subs),
+        "pending_submissions": len(pending_subs),
+    }
+
+
+def _submission_rows() -> List[Dict[str, Any]]:
+    rows = []
+    for sub in SUBMISSIONS:
+        assignment = next((item for item in ASSIGNMENTS if item["id"] == sub["assignment_id"]), None)
+        student = _find_student(sub["student_id"])
+        rows.append({
+            **sub,
+            "assignment_title": assignment["title"] if assignment else "Assignment",
+            "subject_code": assignment["subject_code"] if assignment else "",
+            "subject_name": assignment["subject_name"] if assignment else "",
+            "max_marks": assignment["max_marks"] if assignment else 20,
+            "roll_no": (student or {}).get("roll_no", ""),
+        })
+    return rows
+
+
+# ------------------------------------------------------------ aggregates
+def build_student_me(student: Dict[str, Any]) -> Dict[str, Any]:
+    pct = _attendance_percent(student)
+    assignments = _student_assignments(student["id"])
+    resume = jobs_store.get_resume(student["id"])
+    applications = jobs_store.list_applications(student["id"])
+    return {
+        "role": "student",
+        "profile": student_public_profile(student),
+        "attendance": {
+            "percentage": round(pct, 1),
+            "lectures_held": 168,
+            "lectures_attended": round(168 * pct / 100),
+            "status": "Safe" if pct >= 75 else "Below the 75% rule",
+            "leave_advice": (
+                f"You can miss up to {max(0, int(168 * (pct - 75) / 100))} more lectures"
+                if pct >= 75 else "Attend every remaining lecture to recover"
+            ),
+        },
+        "fees": _student_fee_view(student),
+        "results": _student_result_view(student),
+        "assignments": assignments,
+        "faculty": [
+            {
+                "id": row["id"],
+                "name": row["name"],
+                "designation": row.get("designation"),
+                "subjects": row.get("subjects", []),
+                "email": row.get("email"),
+            }
+            for row in ADMIN_FACULTY
+        ],
+        "resume": {
+            "uploaded": bool(resume),
+            "file_name": (resume or {}).get("file_name"),
+            "skills": (resume or {}).get("skills", []),
+            "updated_at": (resume or {}).get("updated_at"),
+            "strength": ((resume or {}).get("profile") or {}).get("strength", 0),
+        },
+        "applications": len(applications),
+        "announcements": ANNOUNCEMENTS[:4],
+        "activity": jobs_store.activity(10, student_id=student["id"]),
+    }
+
+
+def build_faculty_me(faculty: Dict[str, Any]) -> Dict[str, Any]:
+    students = [student_roster_row(row) for row in ADMIN_STUDENTS]
+    submissions = _submission_rows()
+    pending = [row for row in submissions if row.get("marks") is None]
+    placement = jobs_store.stats()
+    return {
+        "role": "teacher",
+        "profile": faculty_public_profile(faculty),
+        "students": students,
+        "submissions": submissions,
+        "pending_submissions": pending,
+        "subjects": faculty.get("subjects", []),
+        "announcements": ANNOUNCEMENTS[:5],
+        "openings": jobs_store.list_openings(active_only=True)[:5],
+        "activity": jobs_store.activity(20),
+        "stats": {
+            "students": len(students),
+            "avg_attendance": round(sum(row["attendance"] for row in students) / len(students), 1) if students else 0.0,
+            "pending_reviews": len(pending),
+            "resumes": placement["resumes"],
+            "applications": placement["applications"],
+            "below_75": len([row for row in students if row["attendance"] < 75]),
+            "pending_dues": sum(row["pending_fee"] for row in students),
+        },
+    }
+
+
+def build_admin_me() -> Dict[str, Any]:
+    students = [student_roster_row(row) for row in ADMIN_STUDENTS]
+    submissions = _submission_rows()
+    placement = jobs_store.stats()
+    return {
+        "role": "admin",
+        "profile": ADMIN_PROFILE,
+        "students": students,
+        "faculty": [faculty_public_profile(row) for row in ADMIN_FACULTY],
+        "courses": ADMIN_COURSES,
+        "submissions": submissions,
+        "pending_submissions": [row for row in submissions if row.get("marks") is None],
+        "openings": jobs_store.list_openings(active_only=True),
+        "applications": jobs_store.list_applications(),
+        "activity": jobs_store.activity(25),
+        "announcements": ANNOUNCEMENTS[:5],
+        "stats": {
+            "students": len(students),
+            "faculty": len(ADMIN_FACULTY),
+            "courses": len(ADMIN_COURSES),
+            "avg_attendance": round(sum(row["attendance"] for row in students) / len(students), 1) if students else 0.0,
+            "below_75": len([row for row in students if row["attendance"] < 75]),
+            "pending_dues": sum(row["pending_fee"] for row in students),
+            "resumes": placement["resumes"],
+            "applications": placement["applications"],
+            "openings": placement["openings"],
+        },
+    }
+
+
+# --------------------------------------------------------------- schemas
+class GradeSubmissionRequest(BaseModel):
+    marks: float = Field(ge=0)
+    remarks: str = Field(default="", max_length=400)
+
+
+class NewAssignmentRequest(BaseModel):
+    subject_code: str = Field(min_length=3, max_length=12)
+    title: str = Field(min_length=3, max_length=140)
+    description: str = Field(default="", max_length=800)
+    due_date: str = Field(min_length=6, max_length=20)
+    max_marks: int = Field(default=20, ge=1, le=100)
+
+
+class NewAnnouncementRequest(BaseModel):
+    title: str = Field(min_length=3, max_length=140)
+    content: str = Field(min_length=5, max_length=1500)
+    category: str = Field(default="Circular", max_length=40)
+    priority: str = Field(default="normal", max_length=12)
+
+
+class FacultyCreateRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    email: str = Field(default="", max_length=120)
+    department: str = Field(default="Computer Science & Engineering", max_length=80)
+    designation: str = Field(default="Assistant Professor", max_length=60)
+    subjects: List[str] = Field(default_factory=list)
+    semesters: List[int] = Field(default_factory=lambda: [5])
+    password: str = Field(default="", max_length=60)
+    phone: str = Field(default="", max_length=30)
+
+
+# --------------------------------------------------------------- endpoints
+@router.get("/me")
+def get_me(authorization: Optional[str] = Header(default=None)):
+    """One call that gives any signed-in role its connected view of the campus."""
+    actor = _require(authorization, ["student", "teacher", "admin", "parent"])
+    if actor["role"] == "student":
+        return build_student_me(actor["record"])
+    if actor["role"] == "teacher":
+        return build_faculty_me(actor["record"])
+    if actor["role"] == "admin":
+        return build_admin_me()
+    child = _find_student_by_roll((actor["record"] or {}).get("child_roll", ""))
+    return {
+        "role": "parent",
+        "profile": parent_public_profile(actor["record"]),
+        "child": _parent_child_view(child) if child else None,
+        "announcements": ANNOUNCEMENTS[:4],
+    }
+
+
+@router.get("/faculty/overview")
+def faculty_overview(authorization: Optional[str] = Header(default=None)):
+    """Faculty home: roster, submissions waiting for marks, placements, activity."""
+    actor = _require(authorization, ["teacher", "admin"], "The faculty roster")
+    if actor["role"] == "admin":
+        return build_admin_me()
+    return build_faculty_me(actor["record"])
+
+
+@router.get("/admin/linkage")
+def admin_linkage(authorization: Optional[str] = Header(default=None)):
+    """Admin hub: every student, every faculty member and the shared activity."""
+    _require(authorization, ["admin"], "The campus link hub")
+    return build_admin_me()
+
+
+@router.get("/faculty/submissions")
+def faculty_submissions(status: Optional[str] = "all",
+                        authorization: Optional[str] = Header(default=None)):
+    _require(authorization, ["teacher", "admin"], "Reviewing submissions")
+    rows = _submission_rows()
+    if status == "pending":
+        rows = [row for row in rows if row.get("marks") is None]
+    elif status == "graded":
+        rows = [row for row in rows if row.get("marks") is not None]
+    return {"success": True, "submissions": rows, "count": len(rows)}
+
+
+@router.post("/faculty/submissions/{submission_id}/grade")
+def grade_submission(submission_id: str, req: GradeSubmissionRequest,
+                     authorization: Optional[str] = Header(default=None)):
+    """Faculty awards marks; the student's assignment card updates immediately."""
+    actor = _require(authorization, ["teacher", "admin"], "Grading submissions")
+    submission = next((row for row in SUBMISSIONS if row["id"] == submission_id), None)
+    if not submission:
+        raise HTTPException(404, "Submission not found.")
+    assignment = next((row for row in ASSIGNMENTS if row["id"] == submission["assignment_id"]), None)
+    max_marks = assignment["max_marks"] if assignment else 100
+    if req.marks > max_marks:
+        raise HTTPException(400, f"Marks cannot be more than {max_marks}.")
+
+    submission["marks"] = req.marks
+    submission["remarks"] = req.remarks
+    submission["graded_by"] = actor.get("name", "Faculty")
+    submission["graded_at"] = date.today().isoformat()
+    submission["status"] = "graded"
+    jobs_store.log(
+        actor["role"],
+        actor.get("name", "Faculty"),
+        "Graded a submission",
+        f"{submission['student_name']} - {assignment['title'] if assignment else submission['assignment_id']}: {req.marks}/{max_marks}",
+        student_id=submission["student_id"],
+    )
+    student = _find_student(submission["student_id"])
+    return {
+        "success": True,
+        "submission": submission,
+        "student_assignments": _student_assignments(student["id"]) if student else None,
+        "message": f"Marks saved for {submission['student_name']}.",
+    }
+
+
+@router.post("/faculty/assignments")
+def create_assignment(req: NewAssignmentRequest, authorization: Optional[str] = Header(default=None)):
+    """Faculty post an assignment; it appears in every enrolled student's list."""
+    actor = _require(authorization, ["teacher", "admin"], "Creating assignments")
+    code = req.subject_code.strip().upper()
+    subject = None
+    for day in TIMETABLE.values():
+        for slot in day:
+            if slot["subject_code"].upper() == code:
+                subject = slot
+                break
+        if subject:
+            break
+    if not subject:
+        raise HTTPException(404, f"No subject is timetabled with code {code}.")
+
+    assignment = {
+        "id": f"asg-{uuid.uuid4().hex[:6]}",
+        "subject_code": code,
+        "subject_name": subject["subject_name"],
+        "title": req.title.strip(),
+        "description": req.description.strip(),
+        "faculty": actor.get("name", "Faculty"),
+        "due_date": req.due_date,
+        "max_marks": req.max_marks,
+        "attachments": [],
+        "is_submitted": False,
+        "submission_date": None,
+        "submission_file": None,
+        "marks_awarded": None,
+        "status": "pending",
+    }
+    ASSIGNMENTS.insert(0, assignment)
+    NOTIFICATIONS.insert(0, {
+        "id": f"notif-{uuid.uuid4().hex[:6]}",
+        "title": f"New assignment in {code}",
+        "message": f"{actor.get('name', 'Faculty')} posted '{assignment['title']}' - due {req.due_date}.",
+        "type": "assignment",
+        "time": "Just now",
+        "is_read": False,
+    })
+    jobs_store.log(actor["role"], actor.get("name", "Faculty"), "Created an assignment", f"{code}: {assignment['title']}")
+    return {"success": True, "assignment": assignment, "message": "Assignment published to the class."}
+
+
+@router.post("/announcements")
+def create_announcement(req: NewAnnouncementRequest, authorization: Optional[str] = Header(default=None)):
+    """Admin or faculty publish a circular that every student portal reads."""
+    actor = _require(authorization, ["teacher", "admin"], "Publishing circulars")
+    announcement = {
+        "id": f"ann-{uuid.uuid4().hex[:6]}",
+        "title": req.title.strip(),
+        "category": req.category or "Circular",
+        "content": req.content.strip(),
+        "author": actor.get("name", "Administration"),
+        "date": date.today().isoformat(),
+        "priority": req.priority or "normal",
+        "is_read": False,
+    }
+    ANNOUNCEMENTS.insert(0, announcement)
+    NOTIFICATIONS.insert(0, {
+        "id": f"notif-{uuid.uuid4().hex[:6]}",
+        "title": announcement["title"],
+        "message": announcement["content"][:140],
+        "type": "announcement",
+        "time": "Just now",
+        "is_read": False,
+    })
+    jobs_store.log(actor["role"], actor.get("name", "Admin"), "Published a circular", announcement["title"])
+    return {"success": True, "announcement": announcement, "message": "Circular published to all portals."}
+
+
+@router.get("/faculty/students/{student_id}")
+def faculty_student_detail(student_id: str, authorization: Optional[str] = Header(default=None)):
+    """360 view of one student: fees, attendance, submissions, resume, applications."""
+    _require(authorization, ["teacher", "admin"], "Viewing student records")
+    student = _find_student(student_id)
+    if not student:
+        raise HTTPException(404, "Student record not found.")
+    return {
+        "success": True,
+        "student": student_roster_row(student),
+        "profile": student_public_profile(student),
+        "attendance": build_student_me(student)["attendance"],
+        "fees": _student_fee_view(student),
+        "results": _student_result_view(student),
+        "assignments": _student_assignments(student["id"]),
+        "resume": jobs_store.get_resume(student["id"]),
+        "applications": jobs_store.list_applications(student["id"]),
+    }
+
+
+@router.get("/admin/faculty")
+def list_faculty(authorization: Optional[str] = Header(default=None)):
+    _require(authorization, ["admin", "teacher"], "Reading the faculty list")
+    return {
+        "success": True,
+        "faculty": [faculty_public_profile(row) for row in ADMIN_FACULTY],
+        "count": len(ADMIN_FACULTY),
+    }
+
+
+@router.post("/admin/faculty")
+def create_faculty(req: FacultyCreateRequest, authorization: Optional[str] = Header(default=None)):
+    """Admin creates a faculty account; that faculty can sign in immediately."""
+    actor = _require(authorization, ["admin"], "Creating faculty accounts")
+    if any(row.get("email", "").lower() == req.email.strip().lower() and req.email for row in ADMIN_FACULTY):
+        raise HTTPException(400, "A faculty member with this email already exists.")
+    if any(row.get("name", "").lower() == req.name.strip().lower() for row in ADMIN_FACULTY):
+        raise HTTPException(400, "A faculty member with this name already exists.")
+
+    email = req.email.strip() or f"{req.name.lower().replace(' ', '.')}@rbmi.in"
+    password = req.password.strip() or "fac@2026"
+    faculty = {
+        "id": f"fac-{len(ADMIN_FACULTY) + 1}",
+        "name": req.name.strip(),
+        "email": email,
+        "department": req.department,
+        "designation": req.designation,
+        "subjects": req.subjects or ["General"] ,
+        "semesters": req.semesters or [5],
+        "password": password,
+        "phone": req.phone,
+        "office": "Block B",
+        "status": "Active",
+    }
+    ADMIN_FACULTY.append(faculty)
+    jobs_store.log(actor["role"], actor.get("name", "Admin"), "Created a faculty account", f"{faculty['name']} ({faculty['email']})")
+    return {
+        "success": True,
+        "faculty": faculty_public_profile(faculty),
+        "credentials": {"email": email, "password": password},
+        "message": f"{faculty['name']} can now sign in with {email}.",
+    }
+
+
+@router.get("/linkage/activity")
+def linkage_activity(limit: int = 25, authorization: Optional[str] = Header(default=None)):
+    """Shared campus activity feed (upload -> apply -> grade -> circular)."""
+    _require(authorization, ["student", "teacher", "admin"], "Reading campus activity")
+    return {"success": True, "activity": jobs_store.activity(max(1, min(limit, 100)))}
+

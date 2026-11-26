@@ -10,9 +10,13 @@ import {
   CreditCard,
   CheckSquare,
   ArrowRight,
+  Briefcase,
+  Users,
 } from 'lucide-react';
 
 const SEARCHABLE_ITEMS = [
+  { title: 'Job Finds - Resume & Placement Engine', category: 'Placement', path: '/jobs', icon: Briefcase },
+  { title: 'Campus Link Hub - Student, Faculty & Admin Records', category: 'Placement', path: '/campus/link', icon: Users },
   { title: 'Courses & Curriculum Management', category: 'Academics', path: '/courses', icon: BookOpen },
   { title: 'Faculty Attendance Portal', category: 'Faculty', path: '/teacher/attendance', icon: Calendar },
   { title: 'Database Management Systems (KCS501)', category: 'Subjects', path: '/attendance', icon: BookOpen },

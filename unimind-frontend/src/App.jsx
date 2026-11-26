@@ -27,6 +27,8 @@ import MessagesPage from './pages/MessagesPage';
 import DocumentsPage from './pages/DocumentsPage';
 import ProfilePage from './pages/ProfilePage';
 import FacultyAttendancePage from './pages/FacultyAttendancePage';
+import JobsPage from './pages/JobsPage';
+import CampusLinkPage from './pages/CampusLinkPage';
 import CoursesPage from './pages/CoursesPage';
 import TeacherDashboard from './pages/TeacherDashboard';
 import NotFound from './pages/NotFound';
@@ -249,6 +251,24 @@ function AppLayout() {
               element={
                 <ProtectedRoute>
                   <CoursesPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Job Finds & Cross-Role Campus Link Routes */}
+            <Route
+              path="/jobs"
+              element={
+                <ProtectedRoute allowedRoles={['student', 'teacher', 'admin']}>
+                  <JobsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/campus/link"
+              element={
+                <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+                  <CampusLinkPage />
                 </ProtectedRoute>
               }
             />

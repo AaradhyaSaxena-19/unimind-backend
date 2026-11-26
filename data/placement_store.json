@@ -1,0 +1,130 @@
+{
+ "resumes": {
+  "std-1": {
+   "file_name": "Kanishka_Saxena.pdf",
+   "size": 168159,
+   "target_role": "",
+   "preferred_location": "",
+   "profile": {
+    "name": "Kanishka Saxena",
+    "email": "kanishka.saxena255@gmail.com",
+    "phone": "+91 90279 43523",
+    "headline": "Aspiring Frontend Developer",
+    "skills": [
+     "Python",
+     "JavaScript",
+     "SQL",
+     "HTML",
+     "CSS",
+     "React",
+     "Tailwind CSS",
+     "Node.js",
+     "Express",
+     "FastAPI",
+     "TensorFlow",
+     "Keras",
+     "Generative AI",
+     "Statistics",
+     "MySQL",
+     "PostgreSQL",
+     "SQLite",
+     "Supabase",
+     "AWS",
+     "Docker",
+     "Git",
+     "GitHub",
+     "Unit Testing"
+    ],
+    "suggested_roles": [
+     "Frontend Developer",
+     "Full Stack Developer",
+     "Backend Developer"
+    ],
+    "education": "B.Tech, Computer Science & Engineering",
+    "experience_years": 0.0,
+    "links": {
+     "linkedin": "https://linkedin.com/in/kanishka-saxena09",
+     "github": "https://github.com/kanishkasaxena09"
+    },
+    "strength": 98,
+    "word_count": 440,
+    "text_preview": "Kanishka Saxena \nBareilly, Uttar Pradesh, India | +91 90279 43523 | kanishka.saxena255@gmail.com \nlinkedin.com/in/kanishka-saxena09 | github.com/kanishkasaxena09 \nCareer Objective \nMotivated Web Developer skilled in React, JavaScript, HTML, CSS, and Node.js, seeking to build responsive, scalable, and user-\nfriendly web applications while growing technical expertise and contributing to impactful projects. \n \nTechnical Skills \nLanguages: JavaScript, Python. \nFrontend: React.js, Vite, HTML5, CSS3, Tailwind CSS \nBackend: Node.js, Express.js, FastAPI \nDatabases: SQL, PostgreSQL, Supabase \nTools & Cloud: Git, GitHub, AWS \nAI/ML: TensorFlow, Keras, CNN, OpenAI API \nPractices: Unit Testing, Debugging, API Integration \n \nExperience \nAgentic AI Intern – AWS Cloud (45-Day Program) Jun 2026 – August 2026 \n• Build and deploy cloud-hosted applications using AWS S3, EC2, Lambda and IAM alongside Docker. \n• Configure secure AWS environments with IAM roles and policies, and deploy Dockerized backend services on EC2 \ninstances. \nFrontend Developer Intern – Inamigos (45-Day Program) May 2026 – Jun 2026 \n• Built an NGO portfolio website in HTML, CSS, and JavaScript to specification as part of a 45-day"
+   },
+   "skills": [
+    "Python",
+    "JavaScript",
+    "SQL",
+    "HTML",
+    "CSS",
+    "React",
+    "Tailwind CSS",
+    "Node.js",
+    "Express",
+    "FastAPI",
+    "TensorFlow",
+    "Keras",
+    "Generative AI",
+    "Statistics",
+    "MySQL",
+    "PostgreSQL",
+    "SQLite",
+    "Supabase",
+    "AWS",
+    "Docker",
+    "Git",
+    "GitHub",
+    "Unit Testing"
+   ],
+   "student_id": "std-1",
+   "student_name": "Aaradhya Saxena",
+   "roll_no": "210161010001",
+   "email": "aaradhya.saxena@rbmi.in",
+   "semester": 5,
+   "section": "A",
+   "updated_at": "2026-11-26T22:14:26",
+   "created_at": "2026-11-26T22:14:26"
+  }
+ },
+ "applications": [
+  {
+   "id": "app-2451a59291",
+   "applied_at": "2026-11-26T22:18:02",
+   "status": "Applied",
+   "job_id": "unimind campus board:https://careers.cred.club/",
+   "title": "Backend Developer - Graduate Programme",
+   "company": "CRED",
+   "url": "https://careers.cred.club/",
+   "source": "UniMind Campus Board",
+   "location": "Bengaluru",
+   "job_type": "Full-time",
+   "match": 50,
+   "student_id": "std-1",
+   "student_name": "Aaradhya Saxena",
+   "roll_no": "210161010001",
+   "email": "aaradhya.saxena@rbmi.in",
+   "semester": 5,
+   "section": "A"
+  }
+ ],
+ "openings": [],
+ "activity": [
+  {
+   "id": "act-e27ee84d",
+   "at": "2026-11-26T22:18:02",
+   "actor_role": "student",
+   "actor_name": "Aaradhya Saxena",
+   "action": "Applied to a job",
+   "detail": "Backend Developer - Graduate Programme @ CRED",
+   "student_id": "std-1"
+  },
+  {
+   "id": "act-bc502cee",
+   "at": "2026-11-26T22:14:26",
+   "actor_role": "student",
+   "actor_name": "Aaradhya Saxena",
+   "action": "Uploaded a resume",
+   "detail": "23 skills detected for 210161010001",
+   "student_id": "std-1"
+  }
+ ]
+}

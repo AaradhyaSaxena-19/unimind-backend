@@ -21,6 +21,8 @@ import {
   Sparkles,
   X,
   GraduationCap,
+  Briefcase,
+  Users,
 } from 'lucide-react';
 
 export const Sidebar = ({ isMobileOpen, onCloseMobile }) => {
@@ -42,6 +44,7 @@ export const Sidebar = ({ isMobileOpen, onCloseMobile }) => {
     { label: 'Online Tests', path: '/assessments', icon: Sparkles },
     { label: 'Examinations', path: '/exams', icon: Calendar },
     { label: 'Results & Cards', path: '/results', icon: Award },
+    { label: 'Job Finds', path: '/jobs', icon: Briefcase, badge: 'Hiring' },
     { label: 'Fees & Pay', path: '/fees', icon: CreditCard },
     { label: 'Announcements', path: '/announcements', icon: Megaphone },
     { label: 'Events & Holidays', path: '/events', icon: Calendar },
@@ -64,6 +67,8 @@ export const Sidebar = ({ isMobileOpen, onCloseMobile }) => {
 
   const teacherLinks = [
     { label: 'Faculty Dashboard', path: '/teacher/dashboard', icon: LayoutDashboard },
+    { label: 'Classroom Roster', path: '/campus/link', icon: Users, badge: 'Linked' },
+    { label: 'Job Finds & Placements', path: '/jobs', icon: Briefcase },
     { label: 'Faculty Attendance', path: '/teacher/attendance', icon: CalendarCheck, badge: 'Live' },
     { label: 'Courses & Subjects', path: '/courses', icon: GraduationCap },
     { label: 'Paper AI Studio', path: '/teacher/papers', icon: FileText, badge: 'Vision' },
@@ -78,6 +83,8 @@ export const Sidebar = ({ isMobileOpen, onCloseMobile }) => {
 
   const adminLinks = [
     { label: 'Admin Hub', path: '/admin', icon: ShieldAlert, badge: 'Admin' },
+    { label: 'Campus Link Hub', path: '/campus/link', icon: Users, badge: 'Linked' },
+    { label: 'Job Finds & Placements', path: '/jobs', icon: Briefcase },
     { label: 'Faculty Attendance', path: '/teacher/attendance', icon: CalendarCheck },
     { label: 'Courses & Curriculum', path: '/courses', icon: GraduationCap },
     { label: 'Paper AI Studio', path: '/teacher/papers', icon: FileText },
