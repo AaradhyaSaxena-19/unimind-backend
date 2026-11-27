@@ -1,16 +1,44 @@
-# React + Vite
+# UniMinds AI — Frontend Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Modern React 19 + Vite web client for the **UniMinds AI Academic Management & ERP Platform**.
 
-Currently, two official plugins are available:
+🔗 **Main Repository README:** [../README.md](../README.md)  
+🌐 **Live Prototype:** [https://unimind-backend.vercel.app/](https://unimind-backend.vercel.app/)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🛠️ Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+* **React 19**
+* **Vite 6**
+* **Tailwind CSS 3**
+* **Lucide React**
+* **Axios**
+* **React Router v7**
 
-## Expanding the Oxlint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## 🚀 Running Locally
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Configure environment:**
+   Verify `VITE_API_BASE_URL` in `.env.development`:
+   ```env
+   VITE_API_BASE_URL=http://127.0.0.1:8000
+   ```
+
+3. **Start development server:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Production Build:**
+   ```bash
+   npm run build
+   ```
+
+For full credentials, API endpoints, and architecture diagrams, check the [Root README](../README.md).
