@@ -23,7 +23,7 @@ router = APIRouter(prefix="/academic", tags=["academic"])
 STUDENT_DB = {
     "student1": {
         "id": "student-1",
-        "full_name": "Aaradhya Saxena",
+        "full_name": "Kanishka Saxena",
         "roll_no": "210161010001",
         "camu_id": "RBMI2021001",
         "course": "B.Tech Computer Science & Engineering",
@@ -51,7 +51,7 @@ PARENT_DB = {
         "phone": "+91 98765 12345",
         "occupation": "Government Officer",
         "child_id": "student-1",
-        "child_name": "Aaradhya Saxena",
+        "child_name": "Kanishka Saxena",
         "child_roll": "210161010001",
         "child_course": "B.Tech CSE - Sem 5"
     }
@@ -112,7 +112,7 @@ ASSIGNMENTS = [
         "attachments": ["Hospital_ER_Guidelines.pdf"],
         "is_submitted": True,
         "submission_date": "2026-11-12",
-        "submission_file": "Aaradhya_DBMS_Assignment1.pdf",
+        "submission_file": "Kanishka_DBMS_Assignment1.pdf",
         "marks_awarded": 18,
         "status": "graded"
     },
@@ -404,7 +404,7 @@ MESSAGES = [
         "unread_count": 0,
         "messages": [
             {"sender": "student", "text": "Good afternoon Sir, in yesterday's lecture regarding 3NF vs BCNF, can a relation with candidate key (A, B) have functional dependency C -> B in 3NF?", "time": "Yesterday 03:15 PM"},
-            {"sender": "faculty", "text": "Yes Aaradhya! In 3NF, C -> B is permitted if B is a prime attribute (part of candidate key AB), even if C is not a superkey. In BCNF however, this is strictly forbidden.", "time": "Yesterday 04:30 PM"},
+            {"sender": "faculty", "text": "Yes Kanishka! In 3NF, C -> B is permitted if B is a prime attribute (part of candidate key AB), even if C is not a superkey. In BCNF however, this is strictly forbidden.", "time": "Yesterday 04:30 PM"},
             {"sender": "student", "text": "Got it Sir, thank you so much for the clarification!", "time": "Yesterday 04:35 PM"}
         ]
     },
@@ -881,7 +881,7 @@ def get_parent_child_data(authorization: Optional[str] = Header(default=None)):
             {"subject": "Compiler Design (KCS502)", "exam": "Unit Test 1", "score": "22 / 30"},
             {"subject": "Constitution of India (BNC501)", "exam": "Unit Test 1", "score": "27 / 30"}
         ],
-        "mentor_remarks": "Aaradhya shows excellent participation in practical labs and theoretical discussions. Consistent attendance record maintained."
+        "mentor_remarks": "Kanishka shows excellent participation in practical labs and theoretical discussions. Consistent attendance record maintained."
     }
 
 @router.get("/analytics")
@@ -922,7 +922,7 @@ def get_analytics():
 ADMIN_STUDENTS = [
     {
         "id": "std-1",
-        "name": "Aaradhya Saxena",
+        "name": "Kanishka Saxena",
         "password": "student123",
         "photo_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
         "roll_no": "210161010001",
@@ -932,7 +932,7 @@ ADMIN_STUDENTS = [
         "semester": 5,
         "section": "A",
         "batch": "2023-2027",
-        "email": "aaradhya.saxena@rbmi.in",
+        "email": "kanishka.saxena@rbmi.in",
         "phone": "+91 98765 43210",
         "dob": "2003-08-15",
         "gender": "Female",
@@ -1324,7 +1324,7 @@ def login_student(data: Dict[str, Any]):
                 "full_name": "Rajesh Saxena",
                 "role": "parent",
                 "email": "parent1@example.com",
-                "child_name": "Aaradhya Saxena",
+                "child_name": "Kanishka Saxena",
                 "child_roll": "210161010001",
                 "child_course": "B.Tech CSE - Sem 5",
                 "status": "Active"
@@ -1427,8 +1427,8 @@ SUBMISSIONS: List[Dict[str, Any]] = [
         "id": "sub-1",
         "assignment_id": "asg-1",
         "student_id": "std-1",
-        "student_name": "Aaradhya Saxena",
-        "file_name": "Aaradhya_DBMS_Assignment1.pdf",
+        "student_name": "Kanishka Saxena",
+        "file_name": "Kanishka_DBMS_Assignment1.pdf",
         "submitted_at": "2026-11-12",
         "marks": 18,
         "remarks": "Well structured ER diagram and correct 3NF mapping.",
@@ -1440,7 +1440,7 @@ SUBMISSIONS: List[Dict[str, Any]] = [
         "id": "sub-2",
         "assignment_id": "asg-4",
         "student_id": "std-1",
-        "student_name": "Aaradhya Saxena",
+        "student_name": "Kanishka Saxena",
         "file_name": "CyberLaw_CaseStudy_Final.pdf",
         "submitted_at": "2026-11-08",
         "marks": 14,

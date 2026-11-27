@@ -1,0 +1,12 @@
+.env
+.env.*
+.freebuff
+.git
+.tmp_scrape
+__pycache__
+*.pyc
+android
+Papers
+unimind-frontend/node_modules
+unimind-frontend/dist
+unimind-frontend/.env.development

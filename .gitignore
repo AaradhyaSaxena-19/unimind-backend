@@ -1,5 +1,5 @@
 .env
 Papers/
 __pycache__/
-*.pycdata/
+*.pyc
 .tmp_scrape/

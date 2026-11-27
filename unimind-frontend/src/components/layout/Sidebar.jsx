@@ -141,7 +141,7 @@ export const Sidebar = ({ isMobileOpen, onCloseMobile }) => {
             </div>
             <div className="overflow-hidden min-w-0">
               <h4 className="font-bold text-sm text-slate-800 truncate leading-snug">
-                {profile?.full_name || 'Aaradhya Saxena'}
+                {profile?.full_name || 'Kanishka Saxena'}
               </h4>
               <span className="text-[11px] font-medium text-slate-400 block truncate">
                 {role || 'student'} &bull; {profile?.course ? profile.course.slice(0, 16) : 'B.Tech CSE'}

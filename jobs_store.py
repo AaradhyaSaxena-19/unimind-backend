@@ -30,8 +30,19 @@ from typing import Any, Dict, List, Optional
 
 _LOCK = threading.RLock()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-STORE_FILE = os.path.join(DATA_DIR, "placement_store.json")
+SEED_DATA_DIR = os.path.join(BASE_DIR, "data")
+SEED_STORE_FILE = os.path.join(SEED_DATA_DIR, "placement_store.json")
+
+
+def _resolve_store_paths():
+    """Use repo data/ locally, or /tmp on read-only serverless filesystems (e.g. Vercel)."""
+    if os.environ.get("VERCEL") or not os.access(BASE_DIR, os.W_OK):
+        tmp_dir = os.path.join("/tmp", "unimind_data")
+        return tmp_dir, os.path.join(tmp_dir, "placement_store.json")
+    return SEED_DATA_DIR, SEED_STORE_FILE
+
+
+DATA_DIR, STORE_FILE = _resolve_store_paths()
 MAX_ACTIVITY = 300
 
 _DEFAULT_STORE: Dict[str, Any] = {
@@ -48,10 +59,14 @@ def _now() -> str:
 
 def _read() -> Dict[str, Any]:
     """Read the store from disk; a missing or broken file starts a fresh one."""
-    if not os.path.exists(STORE_FILE):
-        return copy.deepcopy(_DEFAULT_STORE)
+    target = STORE_FILE
+    if not os.path.exists(target):
+        if target != SEED_STORE_FILE and os.path.exists(SEED_STORE_FILE):
+            target = SEED_STORE_FILE
+        else:
+            return copy.deepcopy(_DEFAULT_STORE)
     try:
-        with open(STORE_FILE, "r", encoding="utf-8") as handle:
+        with open(target, "r", encoding="utf-8") as handle:
             data = json.load(handle)
     except (OSError, ValueError):
         return copy.deepcopy(_DEFAULT_STORE)

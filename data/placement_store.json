@@ -76,9 +76,9 @@
     "Unit Testing"
    ],
    "student_id": "std-1",
-   "student_name": "Aaradhya Saxena",
+   "student_name": "Kanishka Saxena",
    "roll_no": "210161010001",
-   "email": "aaradhya.saxena@rbmi.in",
+   "email": "kanishka.saxena@rbmi.in",
    "semester": 5,
    "section": "A",
    "updated_at": "2026-11-26T22:14:26",
@@ -99,9 +99,9 @@
    "job_type": "Full-time",
    "match": 50,
    "student_id": "std-1",
-   "student_name": "Aaradhya Saxena",
+   "student_name": "Kanishka Saxena",
    "roll_no": "210161010001",
-   "email": "aaradhya.saxena@rbmi.in",
+   "email": "kanishka.saxena@rbmi.in",
    "semester": 5,
    "section": "A"
   }
@@ -112,7 +112,7 @@
    "id": "act-e27ee84d",
    "at": "2026-11-26T22:18:02",
    "actor_role": "student",
-   "actor_name": "Aaradhya Saxena",
+   "actor_name": "Kanishka Saxena",
    "action": "Applied to a job",
    "detail": "Backend Developer - Graduate Programme @ CRED",
    "student_id": "std-1"
@@ -121,7 +121,7 @@
    "id": "act-bc502cee",
    "at": "2026-11-26T22:14:26",
    "actor_role": "student",
-   "actor_name": "Aaradhya Saxena",
+   "actor_name": "Kanishka Saxena",
    "action": "Uploaded a resume",
    "detail": "23 skills detected for 210161010001",
    "student_id": "std-1"

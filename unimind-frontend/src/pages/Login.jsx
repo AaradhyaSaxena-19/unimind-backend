@@ -120,7 +120,7 @@ export const Login = () => {
             <NeoInput
               label="College Email or University Roll Number"
               type="text"
-              placeholder="e.g. 210161010001 or aaradhya.saxena@rbmi.in"
+              placeholder="e.g. 210161010001 or kanishka.saxena@rbmi.in"
               icon={Mail}
               value={email}
               onChange={(e) => setEmail(e.target.value)}

@@ -19,7 +19,7 @@ import {
 
 // Comprehensive mock roster for realistic classroom simulation
 const INITIAL_STUDENT_ROSTER = [
-  { id: 'st-01', rollNo: '210161010001', name: 'Aaradhya Saxena', email: 'aaradhya.s@rbmi.edu', camuId: 'RBMI2021001', historicalRate: 88, status: 'present', remarks: 'Regular' },
+  { id: 'st-01', rollNo: '210161010001', name: 'Kanishka Saxena', email: 'kanishka.s@rbmi.edu', camuId: 'RBMI2021001', historicalRate: 88, status: 'present', remarks: 'Regular' },
   { id: 'st-02', rollNo: '210161010002', name: 'Abhishek Patel', email: 'abhishek.p@rbmi.edu', camuId: 'RBMI2021002', historicalRate: 79, status: 'present', remarks: 'Regular' },
   { id: 'st-03', rollNo: '210161010003', name: 'Aditya Singhal', email: 'aditya.s@rbmi.edu', camuId: 'RBMI2021003', historicalRate: 68, status: 'absent', remarks: 'Medical Leave' },
   { id: 'st-04', rollNo: '210161010004', name: 'Ananya Gupta', email: 'ananya.g@rbmi.edu', camuId: 'RBMI2021004', historicalRate: 94, status: 'present', remarks: 'Regular' },

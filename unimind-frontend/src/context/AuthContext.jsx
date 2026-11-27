@@ -120,7 +120,7 @@ export const AuthProvider = ({ children }) => {
         user: { id: 'demo-student-id', email: 'student1@example.com' },
         profile: {
           id: 'demo-student-id',
-          full_name: 'Aaradhya Saxena',
+          full_name: 'Kanishka Saxena',
           role: 'student',
           course: 'B.Tech CSE',
           year: 3,
@@ -162,7 +162,7 @@ export const AuthProvider = ({ children }) => {
           full_name: 'Rajesh Saxena',
           role: 'parent',
           email: 'parent1@example.com',
-          child_name: 'Aaradhya Saxena',
+          child_name: 'Kanishka Saxena',
           child_roll: '210161010001',
           child_course: 'B.Tech CSE - Sem 5',
           status: 'Active',

@@ -119,7 +119,7 @@ export const ChatPage = () => {
         ...prev,
         {
           sender: 'bot',
-          text: `⚠️ Service temporarily unavailable: ${err.message}. Please check if the FastAPI service is running at http://127.0.0.1:8000.`,
+          text: `⚠️ Service temporarily unavailable: ${err.message}. Please verify the backend API service is reachable.`,
           aiAvailable: false,
           isError: true,
           timestamp: new Date().toISOString(),

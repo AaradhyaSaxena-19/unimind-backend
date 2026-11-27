@@ -162,7 +162,7 @@ export const ExamsPage = () => {
             <div className="grid grid-cols-2 gap-3 text-xs font-medium bg-slate-50 p-4 rounded-2xl border border-slate-100">
               <div>
                 <span className="text-slate-400 block text-[10px] uppercase font-bold">Candidate Name</span>
-                <span className="font-bold text-slate-800">Aaradhya Saxena</span>
+                <span className="font-bold text-slate-800">Kanishka Saxena</span>
               </div>
               <div>
                 <span className="text-slate-400 block text-[10px] uppercase font-bold">University Roll No</span>

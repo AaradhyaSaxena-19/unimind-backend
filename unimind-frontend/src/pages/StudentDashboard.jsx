@@ -124,7 +124,7 @@ export const StudentDashboard = () => {
           setData(
             mapMeToDashboard(me, tt.timetable) || acad || {
               profile: profile || {
-                full_name: 'Aaradhya Saxena',
+                full_name: 'Kanishka Saxena',
                 course: 'B.Tech Computer Science & Engineering',
                 year: 3,
                 semester: 5,
@@ -238,7 +238,7 @@ export const StudentDashboard = () => {
 
               <div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                  Welcome back, {studentProfile?.full_name?.split(' ')[0] || 'Aaradhya'}! 👋
+                  Welcome back, {studentProfile?.full_name?.split(' ')[0] || 'Kanishka'}! 👋
                 </h1>
                 <p className="text-xs sm:text-sm text-blue-100 mt-1 max-w-lg leading-relaxed">
                   Session 2026-27 &bull; Your attendance is standing at a safe <strong className="text-white">{attendancePct}%</strong>. Check today's schedule and assignments below.
@@ -761,7 +761,7 @@ export const StudentDashboard = () => {
 
             <div className="space-y-2">
               {[
-                { rank: '1', medal: '🥇', name: 'Aaradhya Saxena (You)', score: '94.2%', active: true },
+                { rank: '1', medal: '🥇', name: 'Kanishka Saxena (You)', score: '94.2%', active: true },
                 { rank: '2', medal: '🥈', name: 'Rohan Verma', score: '91.8%', active: false },
                 { rank: '3', medal: '🥉', name: 'Priya Sharma', score: '89.5%', active: false },
                 { rank: '4', medal: '4', name: 'Yash Kapoor', score: '87.0%', active: false },

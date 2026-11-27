@@ -1,0 +1,42 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "builds": [
+    {
+      "src": "main.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
+    },
+    {
+      "src": "unimind-frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/health",
+      "dest": "/main.py"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/main.py"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/unimind-frontend/assets/$1"
+    },
+    {
+      "src": "/([^/]+\\.(?:svg|png|jpg|jpeg|gif|ico|webp|json|txt|xml|woff2?))",
+      "dest": "/unimind-frontend/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/unimind-frontend/index.html"
+    }
+  ]
+}
